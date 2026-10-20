@@ -25,7 +25,23 @@ impl fmt::Display for CoordinateError {
 
 /// A latitude in decimal degrees, guaranteed to be within `-90..=90`.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "f64", into = "f64"))]
 pub struct Latitude(f64);
+
+impl TryFrom<f64> for Latitude {
+    type Error = CoordinateError;
+
+    fn try_from(degrees: f64) -> Result<Self, Self::Error> {
+        Self::new(degrees)
+    }
+}
+
+impl From<Latitude> for f64 {
+    fn from(lat: Latitude) -> f64 {
+        lat.0
+    }
+}
 
 impl Latitude {
     /// Creates a latitude, rejecting values outside `-90..=90` and NaN.
@@ -45,7 +61,23 @@ impl Latitude {
 
 /// A longitude in decimal degrees, guaranteed to be within `-180..=180`.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "f64", into = "f64"))]
 pub struct Longitude(f64);
+
+impl TryFrom<f64> for Longitude {
+    type Error = CoordinateError;
+
+    fn try_from(degrees: f64) -> Result<Self, Self::Error> {
+        Self::new(degrees)
+    }
+}
+
+impl From<Longitude> for f64 {
+    fn from(lon: Longitude) -> f64 {
+        lon.0
+    }
+}
 
 impl Longitude {
     /// Creates a longitude, rejecting values outside `-180..=180` and NaN.
@@ -65,6 +97,7 @@ impl Longitude {
 
 /// A validated latitude and longitude pair.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Coordinate {
     /// Latitude, positive north.
     pub lat: Latitude,

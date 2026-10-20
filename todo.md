@@ -21,7 +21,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 
 ## Open items to resolve (need your input)
 
-- [ ] Confirm current NZTA RUC rates and vehicle types. The spec's $76 diesel / $38 EV-PHEV figures need checking against nzta.govt.nz
+- [ ] Confirm current NZTA RUC rates and vehicle types. Rates now transcribed from the NZTA page (retrieved 2026-10-21). EV liability start date is 1 April 2024 (modelled). Additional overweight licences are transcribed (two assumptions to confirm with NZTA). Earlier rate tables are out of scope. See `docs/nzta/rates-research.md`
 - [ ] Provide eRUC provider API docs and names when available (Phase 5)
 - [ ] Confirm exact GitHub org slug and repo name (replaces `your-username` in the compose example)
 - [ ] Decide the production domain for the PWA/API
@@ -61,36 +61,36 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Checksum validation and malformed/partial sentence handling
 - [x] Support multi-constellation talkers (GP, GN, GL, GA, BD)
 - [x] Coordinate structs with a validated lat/lon type
-- [ ] Accept JSON GPS input as well as NMEA (hardware agnostic)
+- [x] Accept JSON GPS input as well as NMEA (hardware agnostic): `Fix` deserialises from JSON, with missing HDOP/speed read as `None`
 
 ### Distance
 - [x] Haversine implementation using `libm` (no_std floats)
-- [ ] Fix-quality, HDOP and speed filters (reject jumps and drift when stationary)
-- [ ] Trip segment model: start, stop, accumulated distance, gaps
-- [ ] Decide metres vs km precision and rounding rules (RUC bills in km)
+- [x] Fix-quality, HDOP and speed filters (reject jumps and drift when stationary)
+- [x] Trip segment model: start, stop, accumulated distance, gaps
+- [x] Decide metres vs km precision and rounding rules (RUC bills in km): accumulate in metres, round once on the total to whole metres via `billable_km`
 - [ ] Optional smoothing/dedupe of points
 
 ### RUC engine
-- [ ] Vehicle model: class, fuel/powertrain (diesel, petrol-exempt, EV, PHEV), weight, axle config, trailers
-- [ ] Rates as a **versioned, data-driven table** with effective dates (embedded + loadable)
-- [ ] Light vehicle liability (<=3.5t)
-- [ ] Heavy vehicle liability (weight bands, axles, trailers)
-- [ ] GST handling
-- [ ] Licence purchase, odometer-based licence expiry and refund modelling
+- [x] Vehicle model: NZTA RUC type code plus RUC weight. The type code encodes axles, configuration and powertrain, and the caller chooses it. Petrol exemption is the caller's decision (no RUC charged)
+- [x] Rates as a **versioned, data-driven table** with effective dates. The NZTA table from the 2026 page is in `ruc_rates.rs`, effective from 2026-08-06 (see the open item below)
+- [x] Light vehicle liability (<=3.5t): type 1 and 12 bands, from the NZTA page
+- [x] Heavy vehicle liability: weight bands per type, from the NZTA page. Trailers are separate licences, so there is no trailer surcharge. Additional overweight licences are in `ruc_rates.rs`
+- [x] GST handling: NZTA rates are GST-inclusive, so the engine computes the inclusive charge and splits GST out, rounding half up
+- [ ] Licence purchase, odometer-based licence expiry and refund modelling (done for the rate-change rules: heavy licences expire one month after a rate change, and `needs_overlap_licence` flags purchases in that month. Odometer-based expiry, the overlap licence's distance, and refund credits are still to do)
 - [ ] Off-road/exempt distance deductions (flagged "requires Section 43 approval")
-- [ ] Historical-rate lookups for backdated trips
-- [ ] Verify all rates and rules against NZTA and cite them in docs
+- [x] Historical-rate lookups for backdated trips (`rate_for` picks the table in force on the trip date)
+- [ ] Verify all rates and rules against NZTA and cite them in docs (powered, unpowered, crane, vintage, motor caravan, overweight and H-type distance rates transcribed from the 2026 page; source and open items in `docs/nzta/rates-research.md`)
 
 ### Serialisation
-- [ ] `serde` derives for all models (`no_std`-friendly)
-- [ ] JSON via `serde-json-core` or `serde_json` (std feature)
-- [ ] MessagePack via `rmp-serde` (verify `no_std` support, else alternative)
-- [ ] Define and version the BLE payload schema: timestamp, lat, lon, speed, fix quality
-- [ ] Golden-file tests for wire formats
+- [ ] `serde` derives for all models (`no_std`-friendly) (done for `Coordinate`, `Latitude`, `Longitude`, `FixQuality`, `Fix`, `Config`, `Segment` behind the `serde` feature; NMEA sentence structs and RUC models still to do)
+- [x] JSON via `serde_json` (std feature): `Fix` and `Config` round-trip in tests; the library itself does not link `serde_json`
+- [ ] MessagePack via `rmp-serde` (verify `no_std` support, else alternative) (round-trips verified on host; `rmp-serde` is std-only, so firmware needs an alternative)
+- [ ] Define and version the BLE payload schema: timestamp, lat, lon, speed, fix quality (JSON form of `Fix` is pinned as v1 in `tests/golden/fix_v1.json`; the binary BLE layout is not yet defined)
+- [x] Golden-file tests for wire formats (`Fix` v1 JSON; MessagePack round-trip)
 
 ### Quality
-- [ ] Unit tests for NMEA, Haversine, filters and RUC (known-distance fixtures)
-- [ ] Property tests (proptest) and fuzzing (cargo-fuzz) for the parser
+- [x] Unit tests for NMEA, Haversine, filters and RUC (known-distance fixtures; RUC mechanics tests use fixture rates, and `ruc_rates` tests check the NZTA values and weight-band invariants)
+- [ ] Property tests (proptest) and fuzzing (cargo-fuzz) for the parser (proptest done: no-panic parser tests and tracker invariants; cargo-fuzz not yet set up)
 - [ ] Real-world NMEA log fixtures
 - [x] CI: `cargo check` for core on `wasm32-unknown-unknown` and `thumbv7em-none-eabihf`
 - [ ] CI: `no_std` build check and coverage report (no_std check done in CI; coverage still to add)

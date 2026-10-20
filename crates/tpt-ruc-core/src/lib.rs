@@ -13,7 +13,15 @@
 pub mod coord;
 pub mod distance;
 pub mod nmea;
+pub mod ruc;
+pub mod ruc_rates;
+pub mod trip;
 
 pub use coord::{Coordinate, CoordinateError, Latitude, Longitude};
 pub use distance::{haversine_m, EARTH_RADIUS_M};
 pub use nmea::{parse_sentence, FixQuality, ParseError, Sentence};
+pub use ruc::{
+    liability, Liability, RateDate, RateSchedule, RateTable, RucError, Rule, Vehicle,
+    EV_LIABLE_FROM,
+};
+pub use trip::{billable_km, Accepted, Config, Fix, Rejection, Segment, Tracker};

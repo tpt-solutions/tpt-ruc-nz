@@ -72,6 +72,7 @@ impl Talker {
 
 /// GNSS fix quality, from the GGA quality indicator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FixQuality {
     /// No fix (indicator 0, or empty).
     NoFix,

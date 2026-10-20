@@ -11,4 +11,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `tpt-ruc-core`: validated `Latitude`, `Longitude` and `Coordinate` types.
 - `tpt-ruc-core`: NMEA 0183 parsing for GGA, RMC, VTG and GSA sentences, with checksum verification and multi-constellation talker IDs.
 - `tpt-ruc-core`: Haversine great-circle distance using `libm`.
+- `tpt-ruc-core`: `trip` module with a `Tracker` that filters fixes by fix quality, HDOP, implied jumps and stationary drift, and splits trips into `Segment`s across signal gaps. Distances accumulate in metres, with `billable_km` for the final rounded figure.
+- `tpt-ruc-core`: optional `serde` feature (on by default) with derives for `Coordinate`, `Fix`, `Config`, `Segment` and related types. Coordinates are validated on decode.
+- `tpt-ruc-core`: `Fix` version 1 JSON golden file (`tests/golden/fix_v1.json`) and wire-format tests.
+- `tpt-ruc-core`: property tests for the NMEA parser (no panics on arbitrary input) and for the trip tracker (total never decreases).
+- `tpt-ruc-core`: `ruc` module: liability from NZTA type code, RUC weight band, date and billable distance, in integer micro-dollars. GST-inclusive charges are split into excl-GST and GST, and historical tables are selected by effective date.
+- `tpt-ruc-core`: `ruc_rates` module with the NZTA distance-licence rates (powered, unpowered, cranes, vintage, motor caravans, overweight and H types) retrieved 2026-10-21, effective from 2026-08-06. Electric vehicles owe nothing before `EV_LIABLE_FROM` (1 April 2024). Administration fees for online and agent purchases, and `split_gst` for GST-inclusive amounts. Additional overweight licences for powered, crane and combination vehicles, priced per km by extra weight (`additional_liability`). Heavy licence expiry one month after a rate change (`heavy_licence_expires_on`) and overlap-licence detection (`needs_overlap_licence`).
 - CI: formatting, clippy, tests, `no_std` builds for thumbv7em, riscv32imc and wasm32, and `cargo-deny`.
