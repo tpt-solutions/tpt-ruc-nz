@@ -1,0 +1,36 @@
+# Rust build output
+/target/
+**/*.rs.bk
+
+# Cargo lock is kept for the binary crates added later; uncomment only for pure libraries
+# Cargo.lock
+
+# WASM and PWA build output
+/pwa/node_modules/
+/pwa/out/
+/pwa/.next/
+/crates/tpt-ruc-wasm/pkg/
+
+# ESP firmware build output
+/crates/tpt-ruc-firmware/target/
+/crates/tpt-ruc-firmware/.embuild/
+
+# Hardware tool output (regenerate from sources)
+/hardware/**/*-backups/
+/hardware/**/*.bak
+/hardware/**/*.lck
+
+# Local data and secrets. Never commit device keys, API keys or trip data
+/data/
+*.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Editor and OS files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

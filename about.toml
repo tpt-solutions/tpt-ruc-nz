@@ -1,0 +1,15 @@
+# cargo-about configuration for THIRD_PARTY_LICENSES generation.
+# Generate with: cargo about generate about.hbs > THIRD_PARTY_LICENSES.html
+# The accepted list matches deny.toml so both tools agree on what is allowed.
+
+accepted = [
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unlicense",
+    "CC0-1.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+]

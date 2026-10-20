@@ -1,0 +1,31 @@
+# cargo-deny policy for tpt-ruc-nz.
+# Run with: cargo deny check
+#
+# Licence rule: every dependency must be permissive, and any dual-licensed crate
+# must offer one permissive option (for example MIT OR Apache-2.0 is accepted via
+# MIT). Apache-2.0-only crates are rejected because they are not in the allow list.
+# Copyleft (GPL, AGPL, MPL) is rejected because it is not in the allow list.
+
+[graph]
+all-features = true
+
+[advisories]
+ignore = []
+
+[licenses]
+allow = [
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unlicense",
+    "CC0-1.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+]
+confidence-threshold = 0.93
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
