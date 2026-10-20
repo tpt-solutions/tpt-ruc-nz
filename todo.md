@@ -40,7 +40,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Add `.gitignore`, `.editorconfig`, `rust-toolchain.toml`
 - [x] Add `cargo-deny` config (allow MIT/BSD/ISC/Zlib/Unicode/CC0; allow Apache-2.0 only on dual-licensed crates; deny MPL/GPL/AGPL; flag Apache-only crates)
 - [ ] Add a JS licence check for `pwa/` (e.g. `license-checker` allow-list) (Phase 2, once `pwa/` has a `package.json`)
-- [ ] Add a `THIRD_PARTY_LICENSES` generation step (cargo-about or cargo-bundle-licenses) (`about.toml` added; generation not yet wired into CI)
+- [x] Add a `THIRD_PARTY_LICENSES` generation step (`about.hbs` template, `THIRD_PARTY_LICENSES.html` generated, and a CI job runs `cargo about generate` so an unaccepted licence fails the build)
 - [x] Add `CONTRIBUTING.md`, `SECURITY.md`, and a DCO or CLA decision
 - [x] CI baseline (GitHub Actions): fmt, clippy, test, `cargo deny`, caching
 - [x] Dependabot or Renovate for Cargo and npm
@@ -100,11 +100,11 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ## Phase 2 – The PWA & WASM (Weeks 3-5)
 
 ### WASM
-- [ ] Create the `tpt-ruc-wasm` bindings crate (wasm-bindgen + wasm-pack; keeps core free of bindgen)
-- [ ] Expose parse, distance, RUC calc and (de)serialise functions
-- [ ] Build script producing an npm package consumed by `pwa/`
+- [x] Create the `tpt-ruc-wasm` bindings crate (wasm-bindgen 0.2; checks on host and wasm32)
+- [ ] Expose parse, distance, RUC calc and (de)serialise functions (distance, RUC liability, admin fees, billable km and a `TripTracker` taking JSON fixes are exposed; NMEA parsing is not yet)
+- [ ] Build script producing an npm package consumed by `pwa/` (needs wasm-pack, not yet installed)
 - [ ] Size/perf optimisation (`wasm-opt`, release profile)
-- [ ] Rust-side wasm tests (`wasm-bindgen-test`)
+- [ ] Rust-side wasm tests (`wasm-bindgen-test`) (not yet; the bindings are only checked for the wasm32 target)
 
 ### PWA scaffold
 - [ ] Next.js (TypeScript) with `output: export`, Tailwind CSS

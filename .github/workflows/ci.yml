@@ -64,3 +64,16 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check
+
+  third-party-notices:
+    name: Third-party licence notice
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about
+      # Fails if any dependency uses a licence not in about.toml.
+      - run: cargo about generate about.hbs -o THIRD_PARTY_LICENSES.html
+      - run: test -s THIRD_PARTY_LICENSES.html
