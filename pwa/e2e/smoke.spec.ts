@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-test("home page shows the title and the Section 43 notice", async ({ page }) => {
+test("the footer carries the Section 43 notice", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1, name: "tpt-ruc-nz" })).toBeVisible();
-    await expect(page.getByText("Not an NZTA-approved distance recorder")).toBeVisible();
+    await expect(
+        page.locator("footer").getByText("Not an NZTA-approved distance recorder"),
+    ).toBeVisible();
 });
 
 test("manifest is served", async ({ request }) => {

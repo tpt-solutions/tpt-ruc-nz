@@ -161,3 +161,51 @@ export async function restoreBackup(db: Db, backup: Backup): Promise<void> {
         tx.done,
     ]);
 }
+
+// Shared database handle and typed helpers used by the UI.
+
+let dbPromise: Promise<Db> | undefined;
+
+/** Returns one shared connection, opened on first use. */
+export function getDb(): Promise<Db> {
+    dbPromise ??= openRucDb();
+    return dbPromise;
+}
+
+export async function listVehicles(): Promise<Vehicle[]> {
+    const db = await getDb();
+    const vehicles = await db.getAll("vehicles");
+    return vehicles.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function putVehicle(vehicle: Vehicle): Promise<void> {
+    const db = await getDb();
+    await db.put("vehicles", vehicle);
+}
+
+export async function deleteVehicle(id: string): Promise<void> {
+    const db = await getDb();
+    await db.delete("vehicles", id);
+}
+
+export async function getSetting<T>(key: string): Promise<T | undefined> {
+    const db = await getDb();
+    const setting = await db.get("settings", key);
+    return setting?.value as T | undefined;
+}
+
+export async function setSetting(key: string, value: unknown): Promise<void> {
+    const db = await getDb();
+    await db.put("settings", { key, value });
+}
+
+/** Settings key recording that the user has accepted the Section 43 notice. */
+export const SECTION_43_ACK = "section43Acknowledged";
+
+/** Returns a new identifier. Falls back when `randomUUID` is unavailable. */
+export function newId(): string {
+    return (
+        globalThis.crypto?.randomUUID?.() ??
+        `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+    );
+}
