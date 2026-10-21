@@ -6,6 +6,15 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `tpt-ruc-backend`: vehicles and driver assignment, fleet summary, heavy-licence expiry alerts, optional retention, token rotation, device keys with signed uploads and replay protection, a monthly PDF report, and an OpenAPI description in `docs/api/openapi.yaml`.
+- `tpt-ruc-firmware`: a sector log for flash with round-robin wear levelling and power-cut tests, a per-device Ed25519 identity, and host-side BLE chunking and control-command parsing.
+- `tpt-ruc-core`: duplicate-fix rejection, optional smoothing, licence and overlap model, and an off-road deduction that refuses unless Section 43 approval is flagged.
+- `tpt-ruc-wasm`: exports for the heavy-licence expiry date and the current rate table's effective date.
+- PWA: dashboard with liability and heavy-licence expiry, device-recorded trips, settings, a sync engine with an offline queue and conflict reporting, Web Bluetooth connection code (not tested on a board), and a fleet view.
+- Docs: user guides, privacy statement, NZTA compliance and Section 43 preparation documents, mobile FFI crates for iOS and Android, and CI workflows.
+- `tpt-ruc-backend`: self-hostable HTTP server with trip ingest and re-validation, CSV reports for NZTA audits, trip export, date-range deletion, users with roles (admin, manager, driver), per-IP rate limits and SQLite storage.
+- Docker: a multi-stage `Dockerfile` and `docker-compose.yml`. `docker compose up -d` starts the server on `127.0.0.1:8080`, and the first start generates the API key.
+- Backend: the owner's API key is generated and saved on first start when `TPT_RUC_API_KEY` is not set. `tpt-ruc-backend healthcheck` reports whether the server is healthy.
 - Repository foundations: dual MIT OR Apache-2.0 licence, `DESIGN_SPEC.md`, README with the NZTA Section 43 disclaimer, contributing and security policies, and licence policy.
 - Cargo workspace with `tpt-ruc-core`, a `no_std` compatible crate with a `std` feature.
 - `tpt-ruc-core`: validated `Latitude`, `Longitude` and `Coordinate` types.
