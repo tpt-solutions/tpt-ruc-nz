@@ -1,7 +1,11 @@
 import { Backup } from "@/components/Backup";
+import { Dashboard } from "@/components/Dashboard";
+import { DeviceConnection } from "@/components/DeviceConnection";
 import { DeviceSegments } from "@/components/DeviceSegments";
+import { FleetView } from "@/components/FleetView";
 import { RucCalculator } from "@/components/RucCalculator";
 import { Settings } from "@/components/Settings";
+import { SyncPanel } from "@/components/SyncPanel";
 import { StorageStatus } from "@/components/StorageStatus";
 import { Section43Gate } from "@/components/Section43Gate";
 import { Trips } from "@/components/Trips";
@@ -13,8 +17,9 @@ export default function Home() {
             <section className="space-y-8">
                 <h1 className="text-2xl font-semibold">tpt-ruc-nz</h1>
                 <p>
-                    Track distance and estimate RUC liability offline. Trips can be entered by hand
-                    and exported as CSV. Automatic GPS tracking arrives in a later release.
+                    Track distance and estimate RUC liability offline. Enter trips by hand, or
+                    connect the tracking device over Bluetooth and download the trips it recorded.
+                    Export them as CSV.
                 </p>
                 <div className="space-y-3">
                     <h2 className="text-lg font-semibold">RUC calculator</h2>
@@ -24,10 +29,14 @@ export default function Home() {
                     </p>
                     <RucCalculator />
                 </div>
+                <Dashboard />
                 <Vehicles />
+                <DeviceConnection />
                 <Trips />
                 <StorageStatus />
                 <DeviceSegments />
+                <SyncPanel />
+                <FleetView />
                 <Backup />
                 <Settings />
             </section>
