@@ -110,14 +110,14 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Next.js (TypeScript) with `output: export`, Tailwind CSS (`pwa/`, Next 16.4.2, Tailwind 4.3.3, static build tested)
 - [x] Lint/format/test setup (ESLint, Prettier, Vitest, Playwright; `npm run lint`, `format:check`, `test`, `test:e2e`, all passing locally)
 - [ ] PWA manifest, icons, installability (manifest served from `app/manifest.ts`; icon is an SVG only, PNG sizes and an installability check still to do)
-- [ ] Service worker for offline-first shell + WASM caching (Workbox or similar, licence-checked)
+- [ ] Service worker for offline-first shell + WASM caching (Workbox or similar, licence-checked) (hand-written `public/sw.js`, no dependency: stale-while-revalidate for same-origin GETs, and an offline reload test passes. WASM is cached at runtime when fetched but not tested directly)
 - [ ] Dependency licence audit passes in CI (JS check passes locally with the exceptions in docs/LICENSING.md; a `pwa` CI job now runs it, but the job has not run on GitHub yet)
 
 ### Storage
-- [ ] IndexedDB schema: vehicles, trips, segments, settings, device keys
-- [ ] Storage layer with migrations (Dexie or idb; licence check)
-- [ ] Export/import of local data (backup)
-- [ ] Persistent storage request and quota handling
+- [ ] IndexedDB schema: vehicles, trips, segments, settings, device keys (defined in `lib/db.ts` with versioned migrations, using `idb` 8.0.4, ISC)
+- [ ] Storage layer with migrations (Dexie or idb; licence check) (`idb` chosen, since Dexie is Apache-2.0. Migrations are in place, but the IndexedDB calls have no browser test yet)
+- [ ] Export/import of local data (backup) (`exportBackup`, `parseBackup` and `restoreBackup` in `lib/db.ts`; the validator is unit-tested, and restore is not yet tested in a browser)
+- [ ] Persistent storage request and quota handling (`requestPersistentStorage` is written but not yet called from the UI; quota handling is still to do)
 
 ### Features
 - [ ] Vehicle profiles (CRUD)

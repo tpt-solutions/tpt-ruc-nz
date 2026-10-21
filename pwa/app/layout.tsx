@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { ServiceWorkerRegister } from "./sw-register";
 
 export const metadata: Metadata = {
     title: "tpt-ruc-nz",
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <html lang="en-NZ">
             <body className="min-h-dvh bg-neutral-50 text-neutral-900 antialiased">
                 <main className="mx-auto max-w-2xl px-4 py-8">{children}</main>
+                <ServiceWorkerRegister />
                 <footer className="mx-auto max-w-2xl px-4 pb-8 text-sm text-neutral-600">
                     <p>
                         Not an NZTA-approved distance recorder. Claiming RUC deductions or using a
