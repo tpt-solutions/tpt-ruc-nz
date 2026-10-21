@@ -122,7 +122,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ### Features
 - [ ] Vehicle profiles (CRUD)
 - [ ] Manual odometer entry
-- [ ] Basic RUC calculator UI (distance in, liability out)
+- [x] Basic RUC calculator UI (distance in, liability out) (home page; runs the wasm liability function, with an end-to-end test for a known charge)
 - [ ] Dashboard: current liability, distance until licence expiry
 - [ ] Trip history list and detail views
 - [ ] CSV export
