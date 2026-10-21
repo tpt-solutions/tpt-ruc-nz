@@ -6,6 +6,7 @@ import { listTrips, deleteTrip, putTrip } from "@/lib/trips";
 import { localIsoDate, tripsToCsv } from "@/lib/csv";
 import { onVehiclesChanged } from "@/lib/events";
 import type { Trip } from "@/lib/db";
+import { TripDetail } from "@/components/TripDetail";
 
 function errorText(e: unknown): string {
     return e instanceof Error ? e.message : String(e);
@@ -22,6 +23,7 @@ export function Trips() {
     const [vehicleId, setVehicleId] = useState("");
     const [date, setDate] = useState(today);
     const [km, setKm] = useState("");
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     function refresh() {
@@ -93,6 +95,7 @@ export function Trips() {
     }
 
     const names = new Map(vehicles.map((v) => [v.id, v.name]));
+    const selected = trips?.find((t) => t.id === selectedId);
 
     return (
         <section className="space-y-4">
@@ -117,20 +120,37 @@ export function Trips() {
                                         {(trip.distanceM / 1000).toFixed(3)} km
                                     </span>
                                 </span>
-                                <button
-                                    type="button"
-                                    className="text-sm text-red-700 underline"
-                                    onClick={() => {
-                                        deleteTrip(trip.id)
-                                            .then(refresh)
-                                            .catch((e: unknown) => setError(errorText(e)));
-                                    }}
-                                >
-                                    Delete trip
-                                </button>
+                                <span className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        className="text-sm underline"
+                                        onClick={() => setSelectedId(trip.id)}
+                                    >
+                                        Details
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="text-sm text-red-700 underline"
+                                        onClick={() => {
+                                            deleteTrip(trip.id)
+                                                .then(refresh)
+                                                .catch((e: unknown) => setError(errorText(e)));
+                                        }}
+                                    >
+                                        Delete trip
+                                    </button>
+                                </span>
                             </li>
                         ))}
                     </ul>
+                    {selected && (
+                        <TripDetail
+                            key={selected.id}
+                            trip={selected}
+                            vehicle={vehicles.find((v) => v.id === selected.vehicleId)}
+                            onClose={() => setSelectedId(null)}
+                        />
+                    )}
                     <button
                         type="button"
                         className="rounded border border-neutral-400 px-4 py-2"

@@ -30,5 +30,6 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `pwa/`: end-to-end check of the installability requirements (manifest fields, PNG icons, and a controlling service worker).
 - `pwa/`: settings section that shows the Section 43 notice again, with an end-to-end test.
 - Release profile tuned for size (LTO, one codegen unit, `opt-level = "s"`). The wasm module is 143 KB, or 70 KB gzipped, down from 161 KB.
+- `pwa/`: trip detail view with the estimated RUC charge, priced on the trip's date with the wasm module, and an end-to-end test.
 - CI: a `pwa` job runs lint, format, unit tests, the licence check, the build and the end-to-end tests.
 - CI: formatting, clippy, tests, `no_std` builds for thumbv7em, riscv32imc and wasm32, and `cargo-deny`.

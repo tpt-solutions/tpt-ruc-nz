@@ -124,7 +124,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Manual odometer entry (optional per vehicle, whole km, shown in the vehicle list; tested end to end)
 - [x] Basic RUC calculator UI (distance in, liability out) (home page; runs the wasm liability function, with an end-to-end test for a known charge)
 - [ ] Dashboard: current liability, distance until licence expiry
-- [ ] Trip history list and detail views (a manually entered trip list, with delete, is done and tested; detail views and GPS-recorded trips are still to do)
+- [ ] Trip history list and detail views (a manually entered trip list, with delete, and a trip detail view with the estimated charge on the trip's date, are done and tested; GPS-recorded trips are still to do)
 - [x] CSV export (trips as `vehicle,date,distance_km`, with formula-injection protection and an end-to-end download test)
 - [x] Persistent **Section 43 disclaimer** in the UI (first-run acknowledgement gates the app; the footer is on every page)
 - [ ] Settings: units, rate-table version, privacy/sync toggles (off by default) (a settings section with "show the Section 43 notice again" is done and tested; units, rate-table version and sync toggles are still to do)
