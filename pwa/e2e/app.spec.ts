@@ -36,7 +36,7 @@ test("a vehicle added to the profile list survives a reload", async ({ page }) =
 
 test("calculator charges 100 km for a 2,000 kg diesel at the published rate", async ({ page }) => {
     await acceptNotice(page);
-    await page.getByLabel("Distance (km)", { exact: true }).fill("100");
+    await page.getByLabel("Distance (km)", { exact: true }).first().fill("100");
     await page.getByLabel("RUC weight (kg)", { exact: true }).first().fill("2000");
     await page.getByRole("button", { name: "Calculate" }).click();
 
