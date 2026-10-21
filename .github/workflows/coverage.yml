@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 TPT Solutions
+
+# Line coverage for the Rust crates, reported as an LCOV file and uploaded as an artifact.
+#
+# Not yet run: this job was written without access to GitHub Actions. The first
+# run will show whether the tool versions below work. The tpt-ruc-wasm crate is
+# excluded because its tests need Node and wasm-pack. The firmware crate is included
+# because its logic is host-tested.
+
+name: coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Rust with LLVM tools
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Measure coverage
+        run: >
+          cargo llvm-cov --workspace
+          --exclude tpt-ruc-wasm
+          --lcov --output-path lcov.info
+
+      - name: Print a summary
+        run: cargo llvm-cov report --summary-only --exclude tpt-ruc-wasm
+
+      - name: Upload the LCOV report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: lcov.info
+          if-no-files-found: error

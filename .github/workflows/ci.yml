@@ -127,3 +127,25 @@ jobs:
         with:
           command: check
           manifest-path: firmware/esp/Cargo.toml
+
+  docker:
+    name: Docker image builds and starts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Builds the image only. Nothing is pushed or deployed.
+      - run: docker build -t tpt-ruc-nz-backend:ci .
+      - name: Start the container and check its health
+        run: |
+          docker run -d --name tpt-ruc-ci -e TPT_RUC_API_KEY=ci-test-key-0123456789abcdef0123456789 tpt-ruc-nz-backend:ci
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if docker exec tpt-ruc-ci tpt-ruc-backend healthcheck; then
+              echo "healthy after attempt $attempt"
+              docker rm -f tpt-ruc-ci
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs tpt-ruc-ci
+          docker rm -f tpt-ruc-ci
+          exit 1
