@@ -22,8 +22,11 @@ pub use recorder::Recorder;
     all(feature = "esp32s3", feature = "esp32c3"),
     all(feature = "esp32s3", feature = "esp32c6"),
     all(feature = "esp32c3", feature = "esp32c6"),
+    all(feature = "esp32s3", feature = "esp32p4"),
+    all(feature = "esp32c3", feature = "esp32p4"),
+    all(feature = "esp32c6", feature = "esp32p4"),
 ))]
-compile_error!("enable only one chip feature: esp32s3, esp32c3 or esp32c6");
+compile_error!("enable only one chip feature: esp32s3, esp32c3, esp32c6 or esp32p4");
 
 /// The chip this build targets, or `"host"` when no chip feature is enabled.
 pub const CHIP: &str = if cfg!(feature = "esp32s3") {
@@ -32,6 +35,8 @@ pub const CHIP: &str = if cfg!(feature = "esp32s3") {
     "esp32c3"
 } else if cfg!(feature = "esp32c6") {
     "esp32c6"
+} else if cfg!(feature = "esp32p4") {
+    "esp32p4"
 } else {
     "host"
 };

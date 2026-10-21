@@ -1,0 +1,15 @@
+# Per-chip target settings. The default target is ESP32-C6 (RISC-V).
+#   ESP32-C6 (default):  cargo build --release
+#   ESP32-P4:            cargo build --release --no-default-features --features esp32p4 --target riscv32imafc-unknown-none-elf
+#   ESP32-S3 (Xtensa):   cargo +esp build --release --no-default-features --features esp32s3 --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc
+[build]
+target = "riscv32imac-unknown-none-elf"
+
+[target.riscv32imac-unknown-none-elf]
+rustflags = ["-C", "link-arg=-Tlinkall.x", "-C", "force-frame-pointers"]
+
+[target.riscv32imafc-unknown-none-elf]
+rustflags = ["-C", "link-arg=-Tlinkall.x", "-C", "force-frame-pointers"]
+
+[target.xtensa-esp32s3-none-elf]
+rustflags = ["-C", "link-arg=-nostartfiles"]

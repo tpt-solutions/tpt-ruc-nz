@@ -12,6 +12,7 @@ repository = "https://github.com/tpt-solutions/tpt-ruc-nz"
 esp32s3 = []
 esp32c3 = []
 esp32c6 = []
+esp32p4 = []
 
 [dependencies]
 rmp = { version = "0.8.15", default-features = false }

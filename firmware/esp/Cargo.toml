@@ -1,0 +1,34 @@
+[package]
+name = "tpt-ruc-esp"
+description = "ESP device binary for tpt-ruc-nz: reads the GNSS UART and records distance"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["TPT Solutions"]
+repository = "https://github.com/tpt-solutions/tpt-ruc-nz"
+publish = false
+
+# Built separately from the host workspace, because each chip has its own target.
+[workspace]
+
+[features]
+default = ["esp32c6"]
+esp32s3 = ["esp-hal/esp32s3", "esp-backtrace/esp32s3", "esp-println/esp32s3", "esp-bootloader-esp-idf/esp32s3", "esp-alloc/esp32s3", "tpt-ruc-firmware/esp32s3"]
+esp32c6 = ["esp-hal/esp32c6", "esp-backtrace/esp32c6", "esp-println/esp32c6", "esp-bootloader-esp-idf/esp32c6", "esp-alloc/esp32c6", "tpt-ruc-firmware/esp32c6"]
+esp32p4 = ["esp-hal/esp32p4", "esp-backtrace/esp32p4", "esp-println/esp32p4", "esp-bootloader-esp-idf/esp32p4", "esp-alloc/esp32p4", "tpt-ruc-firmware/esp32p4"]
+
+[dependencies]
+tpt-ruc-firmware = { path = "../../crates/tpt-ruc-firmware" }
+esp-hal = { version = "=1.2.2" }
+esp-backtrace = { version = "=0.20.0", features = ["panic-handler", "println"] }
+esp-println = { version = "=0.18.0", default-features = false, features = ["jtag-serial"] }
+esp-bootloader-esp-idf = { version = "=0.6.0", default-features = false }
+# The device code does not allocate. A heap is declared only because a dependency
+# links the allocator symbols.
+esp-alloc = "=0.11.0"
+
+[profile.release]
+opt-level = "s"
+debug = 2
+lto = "fat"
+codegen-units = 1

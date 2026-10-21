@@ -1,5 +1,5 @@
-# Rust build output
-/target/
+# Rust build output (any depth, so nested crates such as firmware/esp are covered)
+target/
 **/*.rs.bk
 
 # Cargo lock is kept for the binary crates added later; uncomment only for pure libraries
@@ -39,3 +39,4 @@ Thumbs.db
 /pwa/*.tsbuildinfo
 /pwa/test-results/
 /pwa/playwright-report/
+/firmware/esp/target/
