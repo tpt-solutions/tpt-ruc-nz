@@ -1,0 +1,744 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 TPT Solutions
+openapi: 3.1.0
+info:
+  title: tpt-ruc-nz backend API
+  version: 1.0.0
+  description: |
+    HTTP API of the self-hosted tpt-ruc-nz backend. Every `/v1` route needs a
+    bearer token: the owner's API key, or a user's token. Health endpoints need no
+    token. Dates are `YYYY-MM-DD`. Money is in NZD and is shown to the cent.
+    This is not an NZTA-approved distance recorder. See the README.
+servers:
+  - url: http://127.0.0.1:8080
+    description: A server started with the default settings.
+security:
+  - bearerAuth: []
+tags:
+  - name: health
+  - name: trips
+  - name: reports
+  - name: vehicles
+  - name: users
+  - name: devices
+  - name: alerts
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness check
+      security: []
+      responses:
+        "200":
+          description: The server is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+  /readyz:
+    get:
+      tags: [health]
+      summary: Readiness check, which includes the database
+      security: []
+      responses:
+        "200":
+          description: The database answers.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ready }
+        "503":
+          description: The database does not answer.
+  /v1/trips:
+    get:
+      tags: [trips]
+      summary: List stored trips, oldest first
+      description: Drivers see only their own trips. Everyone else sees all trips.
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: A page of trips.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [trips, limit, offset]
+                properties:
+                  trips:
+                    type: array
+                    items: { $ref: "#/components/schemas/StoredTrip" }
+                  limit: { type: integer }
+                  offset: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [trips]
+      summary: Record a batch of trips
+      description: |
+        Stores the batch, or none of it. A trip ID already stored with the same
+        values is `unchanged`. The same ID with different values is a `conflict`.
+        The charge is always calculated by the server.
+
+        A driver must name a vehicle assigned to them with `vehicle_id`.
+        Other callers may also give the vehicle inline.
+
+        A device upload also sends `X-Device-Id`, `X-Device-Sequence` and
+        `X-Device-Signature`. The signature covers the message built by
+        `signing_message` in `src/devices.rs`: the prefix `tpt-ruc-trips-v1`, the
+        device ID, the sequence, and the compact JSON of the `trips` array with
+        keys in sorted order. A sequence that is not above the last accepted one
+        is refused with 409.
+      parameters:
+        - name: X-Device-Id
+          in: header
+          required: false
+          description: Present for device uploads. Needs the other two device headers.
+          schema: { type: string, maxLength: 64 }
+        - name: X-Device-Sequence
+          in: header
+          required: false
+          schema: { type: integer, minimum: 0, maximum: 9223372036854775807 }
+        - name: X-Device-Signature
+          in: header
+          required: false
+          description: 64 bytes, hex encoded.
+          schema: { type: string, minLength: 128, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trips]
+              properties:
+                trips:
+                  type: array
+                  minItems: 1
+                  maxItems: 500
+                  items: { $ref: "#/components/schemas/TripInput" }
+      responses:
+        "200":
+          description: The batch was stored, or every trip was already stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/ItemResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401":
+          description: Wrong token, or a device signature that does not verify, or an unknown or revoked device.
+        "403":
+          description: A device belongs to another user.
+        "409":
+          description: |
+            Either a trip ID is stored with different values (the batch is refused,
+            with per-trip results), or a device sequence was reused or is older
+            than the last accepted one.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/ItemResult" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "422":
+          description: One or more trips failed validation. Nothing was stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string, example: validation failed }
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/ItemResult" }
+    delete:
+      tags: [trips]
+      summary: Delete trips in a date range
+      description: Both `from` and `to` are required. Drivers delete only their own trips.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: The number of trips deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/export:
+    get:
+      tags: [trips]
+      summary: Export the trips the caller may see
+      responses:
+        "200":
+          description: Every visible trip, with its stored charge.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  format: { type: string, example: tpt-ruc-export }
+                  version: { type: integer, example: 1 }
+                  trips:
+                    type: array
+                    items: { $ref: "#/components/schemas/StoredTrip" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/reports/trips.csv:
+    get:
+      tags: [reports]
+      summary: One CSV line per trip, for audit
+      description: Managers and admins only.
+      parameters:
+        - { $ref: "#/components/parameters/From" }
+        - { $ref: "#/components/parameters/To" }
+      responses:
+        "200":
+          description: CSV, with CRLF line endings.
+          content:
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/reports/monthly.csv:
+    get:
+      tags: [reports]
+      summary: Monthly totals per vehicle type, as CSV
+      description: Managers and admins only.
+      parameters:
+        - { $ref: "#/components/parameters/From" }
+        - { $ref: "#/components/parameters/To" }
+      responses:
+        "200":
+          description: CSV, with CRLF line endings.
+          content:
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/fleet/summary:
+    get:
+      tags: [reports]
+      summary: Totals per vehicle and month
+      description: Managers and admins only. Trips with an inline vehicle have a null `vehicle_id`.
+      parameters:
+        - { $ref: "#/components/parameters/From" }
+        - { $ref: "#/components/parameters/To" }
+      responses:
+        "200":
+          description: One row per vehicle, month and vehicle type.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month: { type: string, example: "2026-10" }
+                        vehicle_id: { type: [string, "null"] }
+                        vehicle_name: { type: [string, "null"] }
+                        rate_type: { type: string }
+                        trips: { type: integer }
+                        billed_km: { type: string, example: "12.345" }
+                        charge_excl_gst_nzd: { type: string, example: "0.82" }
+                        gst_nzd: { type: string, example: "0.12" }
+                        charge_incl_gst_nzd: { type: string, example: "0.94" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/alerts:
+    get:
+      tags: [alerts]
+      summary: Licence alerts for heavy vehicles
+      description: |
+        Uses the rules in `tpt-ruc-core`. A heavy licence bought before a rate change
+        expires one month after it. A heavy licence bought in the month after a rate
+        change needs an overlap licence. Only vehicles with `licence_bought_on` set
+        are checked. Managers and admins only.
+      parameters:
+        - name: within_days
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 3650, default: 30 }
+      responses:
+        "200":
+          description: Alerts, most urgent first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  today: { type: string, format: date }
+                  within_days: { type: integer }
+                  alerts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        vehicle_id: { type: string }
+                        vehicle_name: { type: string }
+                        kind:
+                          type: string
+                          enum: [expires_soon, expired, overlap_required]
+                        date: { type: string, format: date }
+                        days_remaining: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/vehicles:
+    get:
+      tags: [vehicles]
+      summary: List vehicles
+      description: Managers and admins see every vehicle. Drivers see their assigned vehicles.
+      responses:
+        "200":
+          description: The vehicles.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vehicles:
+                    type: array
+                    items: { $ref: "#/components/schemas/Vehicle" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [vehicles]
+      summary: Add a vehicle
+      description: Managers and admins only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VehicleInput" }
+      responses:
+        "201":
+          description: The vehicle was added.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vehicle" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/vehicles/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/VehicleId" }
+    get:
+      tags: [vehicles]
+      summary: Get one vehicle
+      responses:
+        "200":
+          description: The vehicle.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vehicle" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [vehicles]
+      summary: Replace a vehicle's details
+      description: Managers and admins only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VehicleInput" }
+      responses:
+        "200":
+          description: The updated vehicle.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vehicle" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [vehicles]
+      summary: Delete a vehicle
+      description: Managers and admins only. The vehicle's trips are kept, without a vehicle.
+      responses:
+        "200":
+          description: The vehicle was deleted.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/vehicles/{id}/drivers:
+    parameters:
+      - { $ref: "#/components/parameters/VehicleId" }
+    put:
+      tags: [vehicles]
+      summary: Replace the drivers assigned to a vehicle
+      description: Managers and admins only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_ids]
+              properties:
+                user_ids:
+                  type: array
+                  maxItems: 200
+                  items: { type: string }
+      responses:
+        "200":
+          description: The vehicle, with its new driver list.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vehicle" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/users:
+    get:
+      tags: [users]
+      summary: List users, without their tokens
+      description: Admins only.
+      responses:
+        "200":
+          description: The users.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [users]
+      summary: Create a user and issue their token
+      description: Admins only. The token is shown once, in this response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, role]
+              properties:
+                name: { type: string, maxLength: 100 }
+                role: { type: string, enum: [driver, manager, admin] }
+      responses:
+        "201":
+          description: The user, with the token that is shown only once.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/User"
+                  - type: object
+                    properties:
+                      token: { type: string, example: "tpt_..." }
+                      note: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/users/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/UserId" }
+    delete:
+      tags: [users]
+      summary: Delete a user and every trip they recorded
+      description: Admins only. Their devices and vehicle assignments are removed too.
+      responses:
+        "200":
+          description: The user and the number of trips removed with them.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_user: { type: string }
+                  deleted_trips: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/users/{id}/token:
+    parameters:
+      - { $ref: "#/components/parameters/UserId" }
+    post:
+      tags: [users]
+      summary: Rotate a user's token
+      description: |
+        Admins only. Issues a new token and stops the old one working at once. The
+        new token is shown once, in this response.
+      responses:
+        "200":
+          description: The new token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  token: { type: string }
+                  note: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/devices:
+    get:
+      tags: [devices]
+      summary: List devices
+      description: Drivers see their own devices.
+      responses:
+        "200":
+          description: The devices. Public keys are not included.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items: { $ref: "#/components/schemas/Device" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [devices]
+      summary: Register a device's public key
+      description: |
+        Drivers register for themselves. Managers and admins may name any user.
+        The owner key must name the user with `user_id`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, public_key]
+              properties:
+                name: { type: string, maxLength: 100 }
+                public_key:
+                  type: string
+                  description: 32-byte Ed25519 public key, hex encoded.
+                  minLength: 64
+                  maxLength: 64
+                user_id: { type: string }
+      responses:
+        "201":
+          description: The device was registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  user_id: { type: string }
+                  name: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/devices/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [devices]
+      summary: Revoke a device
+      description: Uploads from a revoked device are refused. Drivers may revoke their own devices.
+      responses:
+        "200":
+          description: The device was revoked.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "The owner's API key, or a user's token. Sent as `Authorization: Bearer <token>`."
+  parameters:
+    From:
+      name: from
+      in: query
+      required: false
+      description: First date in the range. Defaults to the earliest date.
+      schema: { type: string, format: date }
+    To:
+      name: to
+      in: query
+      required: false
+      description: Last date in the range. Defaults to the latest date.
+      schema: { type: string, format: date }
+    VehicleId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, example: "v_0123456789ab" }
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, example: "u_0123456789ab" }
+  responses:
+    BadRequest:
+      description: The request is malformed, or a field fails validation.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: The token is missing or unknown. Repeated failures block the client for 15 minutes (429).
+      headers:
+        WWW-Authenticate:
+          schema: { type: string, example: Bearer }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: The caller's role may not do this.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: The item does not exist, or the caller may not see it.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooLarge:
+      description: The request body is over 256 KB.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    TripInput:
+      type: object
+      required: [id, date, metres]
+      description: Give exactly one of `vehicle_id` and `vehicle`.
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Client-chosen unique ID.
+        date: { type: string, format: date }
+        metres: { type: number, minimum: 0 }
+        vehicle_id:
+          type: string
+          description: A registered vehicle. Drivers must use one assigned to them.
+        vehicle:
+          $ref: "#/components/schemas/InlineVehicle"
+    InlineVehicle:
+      type: object
+      required: [rate_type, gross_kg]
+      properties:
+        rate_type: { type: string, example: "1" }
+        gross_kg: { type: integer, minimum: 1 }
+        electric: { type: boolean, default: false }
+    StoredTrip:
+      type: object
+      properties:
+        id: { type: string }
+        trip_date: { type: string, format: date }
+        rate_type: { type: string }
+        gross_kg: { type: integer }
+        electric: { type: boolean }
+        metres: { type: number }
+        rate_version: { type: string }
+        billed_metres: { type: integer }
+        incl_gst_micros: { type: integer, description: "Money in micro-dollars (1,000,000 = $1)." }
+        excl_gst_micros: { type: integer }
+        gst_micros: { type: integer }
+        user_id: { type: [string, "null"] }
+        vehicle_id: { type: [string, "null"] }
+    Liability:
+      type: object
+      properties:
+        rate_version: { type: string }
+        billed_metres: { type: integer }
+        incl_gst_micros: { type: integer }
+        excl_gst_micros: { type: integer }
+        gst_micros: { type: integer }
+    ItemResult:
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: string }
+        status:
+          type: string
+          enum: [created, unchanged, rejected, conflict, not_stored]
+        error: { type: string }
+        liability: { $ref: "#/components/schemas/Liability" }
+    VehicleInput:
+      type: object
+      required: [name, rate_type, gross_kg]
+      properties:
+        name: { type: string, maxLength: 100 }
+        rate_type: { type: string, example: "H61" }
+        gross_kg: { type: integer, minimum: 1 }
+        electric: { type: boolean, default: false }
+        licence_bought_on:
+          type: [string, "null"]
+          format: date
+          description: When the current distance licence was bought. Needed for alerts.
+    Vehicle:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        rate_type: { type: string }
+        gross_kg: { type: integer }
+        electric: { type: boolean }
+        licence_bought_on: { type: [string, "null"], format: date }
+        driver_ids:
+          type: array
+          items: { type: string }
+        created_at: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        role: { type: string, enum: [driver, manager, admin] }
+        created_at: { type: string }
+    Device:
+      type: object
+      properties:
+        id: { type: string }
+        user_id: { type: string }
+        name: { type: string }
+        last_sequence: { type: integer }
+        revoked: { type: boolean }
+        created_at: { type: string }
