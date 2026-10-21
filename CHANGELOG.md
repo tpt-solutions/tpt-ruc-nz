@@ -28,5 +28,6 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `pwa/`: optional manual odometer reading per vehicle, with validation and end-to-end tests.
 - `pwa/`: storage status with a persistence request and an 80% quota warning, and an offline test that runs the WASM calculator from the cache.
 - `pwa/`: end-to-end check of the installability requirements (manifest fields, PNG icons, and a controlling service worker).
+- `pwa/`: settings section that shows the Section 43 notice again, with an end-to-end test.
 - CI: a `pwa` job runs lint, format, unit tests, the licence check, the build and the end-to-end tests.
 - CI: formatting, clippy, tests, `no_std` builds for thumbv7em, riscv32imc and wasm32, and `cargo-deny`.

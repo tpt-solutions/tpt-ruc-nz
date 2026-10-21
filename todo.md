@@ -127,7 +127,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [ ] Trip history list and detail views (a manually entered trip list, with delete, is done and tested; detail views and GPS-recorded trips are still to do)
 - [x] CSV export (trips as `vehicle,date,distance_km`, with formula-injection protection and an end-to-end download test)
 - [x] Persistent **Section 43 disclaimer** in the UI (first-run acknowledgement gates the app; the footer is on every page)
-- [ ] Settings: units, rate-table version, privacy/sync toggles (off by default)
+- [ ] Settings: units, rate-table version, privacy/sync toggles (off by default) (a settings section with "show the Section 43 notice again" is done and tested; units, rate-table version and sync toggles are still to do)
 - [ ] Accessibility pass (keyboard, contrast, screen reader labels)
 - [ ] Deploy the static site via GitHub Pages or Cloudflare Pages from CI
 - [ ] Phase 2 exit: tag `v0.2.0`, usable offline as a manual RUC tracker

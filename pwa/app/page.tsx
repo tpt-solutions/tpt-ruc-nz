@@ -1,5 +1,6 @@
 import { Backup } from "@/components/Backup";
 import { RucCalculator } from "@/components/RucCalculator";
+import { Settings } from "@/components/Settings";
 import { StorageStatus } from "@/components/StorageStatus";
 import { Section43Gate } from "@/components/Section43Gate";
 import { Trips } from "@/components/Trips";
@@ -26,6 +27,7 @@ export default function Home() {
                 <Trips />
                 <StorageStatus />
                 <Backup />
+                <Settings />
             </section>
         </Section43Gate>
     );
