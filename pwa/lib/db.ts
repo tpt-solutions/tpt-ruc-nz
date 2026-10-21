@@ -46,12 +46,24 @@ export interface DeviceKey {
     createdMs: number;
 }
 
+/**
+ * A trip segment recorded on the device and downloaded over BLE. Its `id` is the
+ * start and end time, so the same segment downloaded twice is stored once.
+ */
+export interface DeviceSegment {
+    id: string;
+    startMs: number;
+    endMs: number;
+    distanceM: number;
+}
+
 export interface RucSchema extends DBSchema {
     vehicles: { key: string; value: Vehicle };
     trips: { key: string; value: Trip; indexes: { byVehicle: string } };
     segments: { key: string; value: Segment; indexes: { byTrip: string } };
     settings: { key: string; value: Setting };
     deviceKeys: { key: string; value: DeviceKey };
+    deviceSegments: { key: string; value: DeviceSegment };
 }
 
 type Db = IDBPDatabase<RucSchema>;
@@ -69,6 +81,9 @@ export const MIGRATIONS: ReadonlyArray<(db: Db) => void> = [
         segments.createIndex("byTrip", "tripId");
         db.createObjectStore("settings", { keyPath: "key" });
         db.createObjectStore("deviceKeys", { keyPath: "id" });
+    },
+    (db) => {
+        db.createObjectStore("deviceSegments", { keyPath: "id" });
     },
 ];
 

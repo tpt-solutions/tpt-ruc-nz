@@ -160,7 +160,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ### PWA ↔ ESP32
 - [ ] Web Bluetooth: scan, connect, reconnect, subscribe to notifications (GATT UUIDs and the live-fix decoder are in `pwa/lib/ble.ts`; the connection code is not written yet and needs a board to test)
 - [ ] Pass BLE bytes into the WASM core and update the live UI
-- [ ] Download stored trip segments from the device and merge into IndexedDB (dedupe) (the protocol side is done and tested: chunk parsing, ordering, CRC checks and the MessagePack decode in `pwa/lib/ble.ts`. The Web Bluetooth connection and the IndexedDB merge are still to do)
+- [ ] Download stored trip segments from the device and merge into IndexedDB (dedupe) (the merge is done and tested end to end: segments keyed by start and end time, stored once, with a JSON import until BLE is wired. The live BLE download is still to do)
 - [ ] Connection state UX, error handling and permissions flow
 - [ ] Capability detection and **graceful message for iOS Safari/Firefox** (no Web Bluetooth)
 - [ ] Document supported browsers/platforms

@@ -32,6 +32,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Release profile tuned for size (LTO, one codegen unit, `opt-level = "s"`). The wasm module is 143 KB, or 70 KB gzipped, down from 161 KB.
 - `pwa/`: trip detail view with the estimated RUC charge, priced on the trip's date with the wasm module, and an end-to-end test.
 - `pwa/lib/ble.ts`: device BLE protocol for the PWA: GATT UUIDs, command encoding, chunk parsing and reassembly with order and CRC checks, and decoders for segments and live fixes. Unit-tested against golden bytes from the firmware encoder.
+- `pwa/`: device segments stored in IndexedDB (schema v2), keyed by start and end time so repeats are skipped. Imported from a JSON file until BLE is wired. Tested end to end.
 - CI: a `pwa` job runs lint, format, unit tests, the licence check, the build and the end-to-end tests.
 - `tpt-ruc-firmware`: device-side GNSS logic, host-tested: NMEA line framing with overflow handling, GGA merged with the RMC date and speed, and conversion to Unix milliseconds. No hardware code yet.
 - `tpt-ruc-firmware`: chip feature flags, an on-device `Recorder` using the core tracker, a bounded segment queue that counts drops, and the version 1 MessagePack BLE payload (`rmp`, no_std).

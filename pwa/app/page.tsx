@@ -1,4 +1,5 @@
 import { Backup } from "@/components/Backup";
+import { DeviceSegments } from "@/components/DeviceSegments";
 import { RucCalculator } from "@/components/RucCalculator";
 import { Settings } from "@/components/Settings";
 import { StorageStatus } from "@/components/StorageStatus";
@@ -26,6 +27,7 @@ export default function Home() {
                 <Vehicles />
                 <Trips />
                 <StorageStatus />
+                <DeviceSegments />
                 <Backup />
                 <Settings />
             </section>
