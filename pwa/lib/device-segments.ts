@@ -107,6 +107,7 @@ export async function assignSegment(segment: DeviceSegment, vehicleId: string): 
         startMs: segment.startMs,
         endMs: segment.endMs,
         distanceM: segment.distanceM,
+        source: "device",
     });
     const db = await getDb();
     await db.put("deviceSegments", { ...segment, vehicleId });

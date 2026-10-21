@@ -7,6 +7,7 @@ import { localIsoDate, tripsToCsv } from "@/lib/csv";
 import { onVehiclesChanged } from "@/lib/events";
 import type { Trip } from "@/lib/db";
 import { TripDetail } from "@/components/TripDetail";
+import { tripStatusText } from "@/lib/trip-status";
 
 function errorText(e: unknown): string {
     return e instanceof Error ? e.message : String(e);
@@ -118,6 +119,9 @@ export function Trips() {
                                     <span className="text-sm text-neutral-600">
                                         {localIsoDate(trip.startMs)},{" "}
                                         {(trip.distanceM / 1000).toFixed(3)} km
+                                    </span>
+                                    <span className="block text-xs text-neutral-600">
+                                        {tripStatusText(trip)}
                                     </span>
                                 </span>
                                 <span className="flex gap-3">

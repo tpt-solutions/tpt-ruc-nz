@@ -17,6 +17,18 @@ export interface Vehicle {
     odometerKm?: number;
 }
 
+/** Where a trip came from: typed in by hand, or recorded by the device. */
+export type TripSource = "manual" | "device";
+
+/** Upload state of one trip. A trip with no sync record has not been sent yet. */
+export interface TripSync {
+    state: "synced" | "conflict" | "rejected";
+    /** When the server last accepted the trip. */
+    syncedMs?: number;
+    /** Why the server did not store the trip, when it did not. */
+    message?: string;
+}
+
 export interface Trip {
     id: string;
     vehicleId: string;
@@ -24,6 +36,9 @@ export interface Trip {
     endMs: number;
     /** Accumulated distance in metres. Rounded to billable km only when charged. */
     distanceM: number;
+    /** Missing on trips stored before this field existed, which are treated as manual. */
+    source?: TripSource;
+    sync?: TripSync;
 }
 
 export interface Segment {
@@ -41,8 +56,13 @@ export interface Setting {
 
 export interface DeviceKey {
     id: string;
-    /** Public key only. The private key stays in WebCrypto and is never stored here. */
+    /** The public key, base64 of its raw bytes. Safe to show and to send. */
     publicKeyBase64: string;
+    /**
+     * The private key, as a non-extractable WebCrypto key. Its bytes cannot be read
+     * by script, only used to sign. Absent when the browser cannot make Ed25519 keys.
+     */
+    privateKey?: CryptoKey;
     createdMs: number;
 }
 

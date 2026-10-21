@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 TPT Solutions
 
-import init, { liability as wasmLiability } from "tpt-ruc-wasm";
+import init, {
+    currentRateEffective,
+    heavyLicenceExpiresOn,
+    liability as wasmLiability,
+} from "tpt-ruc-wasm";
 import type { Trip, Vehicle } from "@/lib/db";
 
 /** The liability for one trip, in micro-dollars, as the wasm module returns it. */
@@ -18,6 +22,18 @@ let ready: Promise<void> | undefined;
 export function loadRuc(): Promise<void> {
     ready ??= init().then(() => undefined);
     return ready;
+}
+
+/**
+ * The date a heavy licence bought under the newest rate change expires, as
+ * `YYYY-MM-DD`. `undefined` for vehicles at or under the heavy limit. The core
+ * rule is one month after the rate change, so this is a date for heavy
+ * licences bought before that change.
+ */
+export async function heavyLicenceExpiry(grossKg: number): Promise<string | undefined> {
+    await loadRuc();
+    const [year, month, day] = currentRateEffective().split("-").map(Number);
+    return heavyLicenceExpiresOn(grossKg, year, month, day) ?? undefined;
 }
 
 /**
@@ -47,4 +63,22 @@ export async function estimateTrip(vehicle: Vehicle, trip: Trip): Promise<TripEs
         gstMicros: value.gstMicros,
         rateVersion: value.rateVersion,
     };
+}
+
+/**
+ * The rate table in force on `on`, as the wasm module names it. Read from a
+ * liability calculation, so it always matches the rates the estimates use.
+ */
+export async function rateTableVersion(on: Date = new Date()): Promise<string> {
+    await loadRuc();
+    const value = wasmLiability(
+        "1",
+        3000,
+        false,
+        on.getFullYear(),
+        on.getMonth() + 1,
+        on.getDate(),
+        1000,
+    ) as { rateVersion: string };
+    return value.rateVersion;
 }
