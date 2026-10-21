@@ -598,6 +598,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tpt-ruc-firmware"
+version = "0.1.0"
+dependencies = [
+ "libm",
+ "rmp",
+ "tpt-ruc-core",
+]
+
+[[package]]
 name = "tpt-ruc-wasm"
 version = "0.1.0"
 dependencies = [

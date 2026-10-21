@@ -141,21 +141,21 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Start the BOM draft in `hardware/` (`hardware/bench-bom.csv`, prices to be quoted)
 
 ### Firmware
-- [ ] Create the `tpt-ruc-firmware` crate with chip feature flags (crate created with GNSS framing and fix merging, host-tested; chip feature flags and the esp-hal driver are still to do)
+- [x] Create the `tpt-ruc-firmware` crate with chip feature flags (`esp32s3`, `esp32c3`, `esp32c6`; enabling two is a compile error. The esp-hal driver is separate and not yet written)
 - [ ] Toolchain config for Xtensa (espup) and RISC-V; CI builds both
 - [ ] Verify the esp-hal and BLE stack (`esp-wifi`/`trouble` or `bleps`) licences (MIT/Apache dual)
 - [ ] GNSS UART reader task feeding `tpt-ruc-core` (the byte-to-fix logic, `GnssReader`, is done and tested on the host; the UART task itself needs the esp-hal driver)
-- [ ] Distance accumulation on-device using the core
+- [x] Distance accumulation on-device using the core (`Recorder` runs the core tracker on the device; host-tested)
 - [ ] Flash storage for trip segments (LittleFS or log-structured; wear levelling; power-fail safe)
-- [ ] Data-loss prevention when BLE is disconnected (store-and-forward)
+- [ ] Data-loss prevention when BLE is disconnected (a bounded in-RAM segment queue that counts drops is done and tested; flash persistence and the BLE sender are still to do)
 - [ ] Custom BLE GATT service and UUID design (live data, trip sync, device info, time sync)
-- [ ] MessagePack payload encoding of timestamp/lat/lon/speed/fix quality
+- [x] MessagePack payload encoding of timestamp/lat/lon/speed/fix quality (version 1 array, pinned by golden bytes; `tpt-ruc-firmware::payload`)
 - [ ] Chunking and MTU negotiation for trip history transfer
 - [ ] Pairing/bonding approach and device identity (per-device ed25519 keypair stored on device)
 - [ ] OTA update plan (decide now or defer)
 - [ ] Low-power modes and watchdog
 - [ ] Firmware config (GNSS rate, filters) via BLE
-- [ ] Host-side tests for the firmware logic (hardware-in-the-loop optional)
+- [x] Host-side tests for the firmware logic (21 tests: GNSS framing, fix merging, recorder, segment queue, payload)
 
 ### PWA ↔ ESP32
 - [ ] Web Bluetooth: scan, connect, reconnect, subscribe to notifications

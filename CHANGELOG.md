@@ -33,5 +33,6 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `pwa/`: trip detail view with the estimated RUC charge, priced on the trip's date with the wasm module, and an end-to-end test.
 - CI: a `pwa` job runs lint, format, unit tests, the licence check, the build and the end-to-end tests.
 - `tpt-ruc-firmware`: device-side GNSS logic, host-tested: NMEA line framing with overflow handling, GGA merged with the RMC date and speed, and conversion to Unix milliseconds. No hardware code yet.
+- `tpt-ruc-firmware`: chip feature flags, an on-device `Recorder` using the core tracker, a bounded segment queue that counts drops, and the version 1 MessagePack BLE payload (`rmp`, no_std).
 - `hardware/`: bench notes with the recommended boards, GNSS receiver, UART settings and pin map, and a BOM draft. Not yet verified on hardware.
 - CI: formatting, clippy, tests, `no_std` builds for thumbv7em, riscv32imc and wasm32, and `cargo-deny`.

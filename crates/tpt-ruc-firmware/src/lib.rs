@@ -11,6 +11,31 @@
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 
+pub mod payload;
+pub mod queue;
+pub mod recorder;
+
+pub use queue::SegmentQueue;
+pub use recorder::Recorder;
+
+#[cfg(any(
+    all(feature = "esp32s3", feature = "esp32c3"),
+    all(feature = "esp32s3", feature = "esp32c6"),
+    all(feature = "esp32c3", feature = "esp32c6"),
+))]
+compile_error!("enable only one chip feature: esp32s3, esp32c3 or esp32c6");
+
+/// The chip this build targets, or `"host"` when no chip feature is enabled.
+pub const CHIP: &str = if cfg!(feature = "esp32s3") {
+    "esp32s3"
+} else if cfg!(feature = "esp32c3") {
+    "esp32c3"
+} else if cfg!(feature = "esp32c6") {
+    "esp32c6"
+} else {
+    "host"
+};
+
 use tpt_ruc_core::nmea::{Date, UtcTime};
 use tpt_ruc_core::{parse_sentence, Coordinate, Fix, Sentence};
 

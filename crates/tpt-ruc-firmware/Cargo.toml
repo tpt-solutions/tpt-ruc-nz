@@ -7,7 +7,14 @@ license.workspace = true
 authors.workspace = true
 repository = "https://github.com/tpt-solutions/tpt-ruc-nz"
 
+[features]
+# One chip feature selects the target. Enable exactly one for a device build.
+esp32s3 = []
+esp32c3 = []
+esp32c6 = []
+
 [dependencies]
+rmp = { version = "0.8.15", default-features = false }
 tpt-ruc-core = { path = "../tpt-ruc-core", version = "0.1.0", default-features = false }
 libm.workspace = true
 
