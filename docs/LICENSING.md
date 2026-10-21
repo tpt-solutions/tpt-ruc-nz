@@ -17,7 +17,7 @@ Rejected:
 
 Enforced by `cargo deny check` (`deny.toml`) and the JS licence check for `pwa/` (`pwa/scripts/check-licences.mjs`, run by `npm run licenses`). Third-party notices are generated with `cargo about` (`about.toml`) into `THIRD_PARTY_LICENSES`.
 
-### JavaScript exceptions (to confirm)
+### JavaScript exceptions (accepted)
 
 The JS check allows the MIT, ISC, BSD, 0BSD, Unlicense, CC0, BlueOak and Python-2.0 licences, and dual licences through their permissive option. It also accepts these named exceptions, each with a reason in the script:
 
@@ -26,7 +26,7 @@ The JS check allows the MIT, ISC, BSD, 0BSD, Unlicense, CC0, BlueOak and Python-
 - **`detect-libc`** (Apache-2.0): platform detection for the sharp install.
 - **Playwright** (Apache-2.0), **`baseline-browser-mapping`** (Apache-2.0) and **`caniuse-lite`** (CC-BY-4.0): build-time and test tooling, not shipped.
 
-Apache-2.0-only packages are rejected by the crate policy above. Confirm whether `@swc/helpers` and the other Apache-2.0 exceptions are acceptable for the PWA.
+These exceptions were accepted on the maintainer's instruction to follow the recommendations. Remove the `sharp` exception once Next.js no longer installs it.
 
 ## Source file headers
 

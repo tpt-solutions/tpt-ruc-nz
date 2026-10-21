@@ -22,5 +22,6 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `pwa/`: Next.js 16 static-export PWA scaffold with TypeScript, Tailwind CSS 4, ESLint, Prettier, Vitest and Playwright. Includes a web app manifest, a home page with the Section 43 notice, and a JS licence check with named exceptions.
 - `pwa/`: offline shell service worker (stale-while-revalidate, tested offline in Chromium), and an IndexedDB storage module with versioned migrations and backup validation.
 - `pwa/`: RUC calculator on the home page, backed by the wasm liability function, with end-to-end tests.
+- `pwa/`: Section 43 first-run acknowledgement that gates the app, vehicle profiles (create, list, delete) in IndexedDB, and end-to-end tests for each.
 - CI: a `pwa` job runs lint, format, unit tests, the licence check, the build and the end-to-end tests.
 - CI: formatting, clippy, tests, `no_std` builds for thumbv7em, riscv32imc and wasm32, and `cargo-deny`.

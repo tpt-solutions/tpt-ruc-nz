@@ -111,7 +111,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Lint/format/test setup (ESLint, Prettier, Vitest, Playwright; `npm run lint`, `format:check`, `test`, `test:e2e`, all passing locally)
 - [ ] PWA manifest, icons, installability (manifest served from `app/manifest.ts`; icon is an SVG only, PNG sizes and an installability check still to do)
 - [ ] Service worker for offline-first shell + WASM caching (Workbox or similar, licence-checked) (hand-written `public/sw.js`, no dependency: stale-while-revalidate for same-origin GETs, and an offline reload test passes. WASM is cached at runtime when fetched but not tested directly)
-- [ ] Dependency licence audit passes in CI (JS check passes locally with the exceptions in docs/LICENSING.md; a `pwa` CI job now runs it, but the job has not run on GitHub yet)
+- [x] Dependency licence audit passes in CI (JS check passes locally, with the exceptions accepted in docs/LICENSING.md; the `pwa` CI job has not yet run on GitHub)
 
 ### Storage
 - [ ] IndexedDB schema: vehicles, trips, segments, settings, device keys (defined in `lib/db.ts` with versioned migrations, using `idb` 8.0.4, ISC)
@@ -120,13 +120,13 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [ ] Persistent storage request and quota handling (`requestPersistentStorage` is written but not yet called from the UI; quota handling is still to do)
 
 ### Features
-- [ ] Vehicle profiles (CRUD)
+- [ ] Vehicle profiles (CRUD) (create, list and delete are done and tested; edit is still to do)
 - [ ] Manual odometer entry
 - [x] Basic RUC calculator UI (distance in, liability out) (home page; runs the wasm liability function, with an end-to-end test for a known charge)
 - [ ] Dashboard: current liability, distance until licence expiry
 - [ ] Trip history list and detail views
 - [ ] CSV export
-- [ ] Persistent **Section 43 disclaimer** in the UI (first-run acknowledgement + footer)
+- [x] Persistent **Section 43 disclaimer** in the UI (first-run acknowledgement gates the app; the footer is on every page)
 - [ ] Settings: units, rate-table version, privacy/sync toggles (off by default)
 - [ ] Accessibility pass (keyboard, contrast, screen reader labels)
 - [ ] Deploy the static site via GitHub Pages or Cloudflare Pages from CI
