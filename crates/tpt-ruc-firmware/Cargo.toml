@@ -1,0 +1,15 @@
+[package]
+name = "tpt-ruc-firmware"
+description = "Device logic for the tpt-ruc-nz tracker: GNSS framing and fix merging, free of hardware code"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository = "https://github.com/tpt-solutions/tpt-ruc-nz"
+
+[dependencies]
+tpt-ruc-core = { path = "../tpt-ruc-core", version = "0.1.0", default-features = false }
+libm.workspace = true
+
+[lints]
+workspace = true

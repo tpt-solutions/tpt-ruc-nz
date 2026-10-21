@@ -1,0 +1,8 @@
+item,quantity,part,notes,unit_price_nzd
+primary mcu,1,ESP32-S3-DevKitC-1,Xtensa target,
+second mcu,1,ESP32-C3-DevKitM-1,RISC-V variant,
+gnss receiver,1,u-blox NEO-M8N breakout,Check the 3.3 V UART level before wiring,
+gnss antenna,1,Active GNSS antenna with SMA or u.FL connector,Must match the breakout's connector,
+usb cable,2,USB-C data cable,One per DevKit,
+jumper wires,1 set,Dupont male-female,,
+breadboard,1,Solderless breadboard,,

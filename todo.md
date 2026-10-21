@@ -135,16 +135,16 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ## Phase 3 – The Hardware MVP (Weeks 6-8)
 
 ### Bench hardware
-- [ ] Select dev boards: ESP32-S3 DevKit + ESP32-C3/C6 DevKit
-- [ ] Select GNSS breakout (u-blox NEO-M8N or Quectel L80) and confirm UART settings/baud/update rate
-- [ ] Breadboard wiring diagram and pin map for both chips
-- [ ] Start the BOM draft in `hardware/`
+- [x] Select dev boards: ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1 (recommended in `hardware/README.md`; not yet bought or tested)
+- [x] Select GNSS breakout: u-blox NEO-M8N, 9600 baud 8N1, 1 Hz (recommended; confirm on hardware)
+- [x] Breadboard wiring diagram and pin map for both chips (proposed in `hardware/README.md`; not yet wired)
+- [x] Start the BOM draft in `hardware/` (`hardware/bench-bom.csv`, prices to be quoted)
 
 ### Firmware
-- [ ] Create the `tpt-ruc-firmware` crate with chip feature flags (`esp32s3`, `esp32c3`/`esp32c6`)
+- [ ] Create the `tpt-ruc-firmware` crate with chip feature flags (crate created with GNSS framing and fix merging, host-tested; chip feature flags and the esp-hal driver are still to do)
 - [ ] Toolchain config for Xtensa (espup) and RISC-V; CI builds both
 - [ ] Verify the esp-hal and BLE stack (`esp-wifi`/`trouble` or `bleps`) licences (MIT/Apache dual)
-- [ ] GNSS UART reader task feeding `tpt-ruc-core`
+- [ ] GNSS UART reader task feeding `tpt-ruc-core` (the byte-to-fix logic, `GnssReader`, is done and tested on the host; the UART task itself needs the esp-hal driver)
 - [ ] Distance accumulation on-device using the core
 - [ ] Flash storage for trip segments (LittleFS or log-structured; wear levelling; power-fail safe)
 - [ ] Data-loss prevention when BLE is disconnected (store-and-forward)
