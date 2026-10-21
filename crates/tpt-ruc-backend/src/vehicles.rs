@@ -117,7 +117,7 @@ pub async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<
                     create(state, &principal, request.body()).await
                 }
                 Ok(principal) => list(state, &principal).await,
-                Err(response) => return response,
+                Err(response) => return *response,
             }
         }
         [id] => {
@@ -128,14 +128,14 @@ pub async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<
                 }
                 Ok(principal) if method == Method::DELETE => delete(state, &principal, id).await,
                 Ok(principal) => get(state, &principal, id).await,
-                Err(response) => return response,
+                Err(response) => return *response,
             }
         }
         [id, "drivers"] => {
             let allowed = [Method::PUT];
             match authorize(state, request, &allowed).await {
                 Ok(principal) => set_drivers(state, &principal, id, request.body()).await,
-                Err(response) => return response,
+                Err(response) => return *response,
             }
         }
         _ => return ApiError::NotFound.into_response(),

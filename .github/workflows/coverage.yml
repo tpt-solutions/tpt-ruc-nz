@@ -44,7 +44,7 @@ jobs:
           --lcov --output-path lcov.info
 
       - name: Print a summary
-        run: cargo llvm-cov report --summary-only --exclude tpt-ruc-wasm
+        run: cargo llvm-cov report --summary-only
 
       - name: Upload the LCOV report
         uses: actions/upload-artifact@v4
