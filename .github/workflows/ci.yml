@@ -104,3 +104,26 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  device:
+    name: ESP device builds (C6, P4) and licence policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imac-unknown-none-elf,riscv32imafc-unknown-none-elf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: firmware/esp
+      # ESP32-S3 (Xtensa) is not built in CI. It needs the espup toolchain, which is built locally.
+      - name: Build ESP32-C6 (default target)
+        working-directory: firmware/esp
+        run: cargo build --release
+      - name: Build ESP32-P4
+        working-directory: firmware/esp
+        run: cargo build --release --no-default-features --features esp32p4 --target riscv32imafc-unknown-none-elf
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+          manifest-path: firmware/esp/Cargo.toml

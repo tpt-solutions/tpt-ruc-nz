@@ -18,7 +18,7 @@ esp32c6 = ["esp-hal/esp32c6", "esp-backtrace/esp32c6", "esp-println/esp32c6", "e
 esp32p4 = ["esp-hal/esp32p4", "esp-backtrace/esp32p4", "esp-println/esp32p4", "esp-bootloader-esp-idf/esp32p4", "esp-alloc/esp32p4", "tpt-ruc-firmware/esp32p4"]
 
 [dependencies]
-tpt-ruc-firmware = { path = "../../crates/tpt-ruc-firmware" }
+tpt-ruc-firmware = { path = "../../crates/tpt-ruc-firmware", version = "0.1.0" }
 esp-hal = { version = "=1.2.2" }
 esp-backtrace = { version = "=0.20.0", features = ["panic-handler", "println"] }
 esp-println = { version = "=0.18.0", default-features = false, features = ["jtag-serial"] }

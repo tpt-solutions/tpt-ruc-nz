@@ -1,0 +1,37 @@
+# cargo-deny policy for the device crate. Run with:
+#   cargo deny --manifest-path firmware/esp/Cargo.toml check
+#
+# The device crate is built separately from the host workspace, so it has its own
+# policy. It mirrors the root deny.toml, with the exceptions below. Each exception
+# needs a review. They are listed in docs/LICENSING.md.
+
+[advisories]
+ignore = [
+  # paste is a compile-time macro used by esp-hal. No replacement in the esp-hal 1.x series yet.
+  { id = "RUSTSEC-2024-0436", reason = "paste: compile-time macro in esp-hal; not shipped in the binary" },
+  # unsafe-libyaml is used by serde_yaml, which esp-config uses in its build script only.
+  { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml: build-time only, via esp-config's serde_yaml; not shipped" },
+]
+
+[licenses]
+allow = [
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unlicense",
+    "CC0-1.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+]
+confidence-threshold = 0.93
+
+# ryu is dual licensed Apache-2.0 OR BSL-1.0. It is used by serde_yaml in a build script only.
+[[licenses.exceptions]]
+allow = ["Apache-2.0", "BSL-1.0"]
+name = "ryu"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
