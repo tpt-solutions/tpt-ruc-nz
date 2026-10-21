@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 TPT Solutions
+
+# Fuzz targets for tpt-ruc-core, run with cargo-fuzz (needs a nightly toolchain).
+# This crate has its own workspace, so it is not part of the main workspace and
+# its dependencies do not enter the main lock file.
+#
+#   cargo install cargo-fuzz
+#   cargo +nightly fuzz run nmea_parse
+#   cargo +nightly fuzz run fix_json
+
+[package]
+name = "tpt-ruc-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+tpt-ruc-core = { path = "../crates/tpt-ruc-core" }
+
+[[bin]]
+name = "nmea_parse"
+path = "fuzz_targets/nmea_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fix_json"
+path = "fuzz_targets/fix_json.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]
