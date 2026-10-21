@@ -77,3 +77,30 @@ jobs:
       # Fails if any dependency uses a licence not in about.toml.
       - run: cargo about generate about.hbs -o THIRD_PARTY_LICENSES.html
       - run: test -s THIRD_PARTY_LICENSES.html
+
+  pwa:
+    name: PWA lint, test and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pwa
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pwa/package-lock.json
+      - run: cargo install wasm-pack --locked
+      - run: sh scripts/build-wasm.sh
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run licenses
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

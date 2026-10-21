@@ -35,3 +35,7 @@
 !.vscode/extensions.json
 .DS_Store
 Thumbs.db
+/pwa/next-env.d.ts
+/pwa/*.tsbuildinfo
+/pwa/test-results/
+/pwa/playwright-report/

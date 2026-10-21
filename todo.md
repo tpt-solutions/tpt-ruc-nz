@@ -39,7 +39,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Write `README.md` with a **prominent NZTA Section 43 disclaimer**
 - [x] Add `.gitignore`, `.editorconfig`, `rust-toolchain.toml`
 - [x] Add `cargo-deny` config (allow MIT/BSD/ISC/Zlib/Unicode/CC0; allow Apache-2.0 only on dual-licensed crates; deny MPL/GPL/AGPL; flag Apache-only crates)
-- [ ] Add a JS licence check for `pwa/` (e.g. `license-checker` allow-list) (Phase 2, once `pwa/` has a `package.json`)
+- [x] Add a JS licence check for `pwa/` (`pwa/scripts/check-licences.mjs`, with named exceptions in docs/LICENSING.md for review)
 - [x] Add a `THIRD_PARTY_LICENSES` generation step (`about.hbs` template, `THIRD_PARTY_LICENSES.html` generated, and a CI job runs `cargo about generate` so an unaccepted licence fails the build)
 - [x] Add `CONTRIBUTING.md`, `SECURITY.md`, and a DCO or CLA decision
 - [x] CI baseline (GitHub Actions): fmt, clippy, test, `cargo deny`, caching
@@ -107,11 +107,11 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Rust-side wasm tests (`wasm-bindgen-test`, run with `wasm-pack test --node crates/tpt-ruc-wasm`)
 
 ### PWA scaffold
-- [ ] Next.js (TypeScript) with `output: export`, Tailwind CSS
-- [ ] Lint/format/test setup (ESLint, Prettier, Vitest, Playwright)
-- [ ] PWA manifest, icons, installability
+- [x] Next.js (TypeScript) with `output: export`, Tailwind CSS (`pwa/`, Next 16.4.2, Tailwind 4.3.3, static build tested)
+- [x] Lint/format/test setup (ESLint, Prettier, Vitest, Playwright; `npm run lint`, `format:check`, `test`, `test:e2e`, all passing locally)
+- [ ] PWA manifest, icons, installability (manifest served from `app/manifest.ts`; icon is an SVG only, PNG sizes and an installability check still to do)
 - [ ] Service worker for offline-first shell + WASM caching (Workbox or similar, licence-checked)
-- [ ] Dependency licence audit passes in CI
+- [ ] Dependency licence audit passes in CI (JS check passes locally with the exceptions in docs/LICENSING.md; a `pwa` CI job now runs it, but the job has not run on GitHub yet)
 
 ### Storage
 - [ ] IndexedDB schema: vehicles, trips, segments, settings, device keys

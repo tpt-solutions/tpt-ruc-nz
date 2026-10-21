@@ -15,7 +15,18 @@ Rejected:
 - **GPL, LGPL, AGPL** and other copyleft licences.
 - Protobuf via `prost`, which is Apache-only.
 
-Enforced by `cargo deny check` (`deny.toml`) and the JS licence allow-list for `pwa/` (added in Phase 2). Third-party notices are generated with `cargo about` (`about.toml`) into `THIRD_PARTY_LICENSES`.
+Enforced by `cargo deny check` (`deny.toml`) and the JS licence check for `pwa/` (`pwa/scripts/check-licences.mjs`, run by `npm run licenses`). Third-party notices are generated with `cargo about` (`about.toml`) into `THIRD_PARTY_LICENSES`.
+
+### JavaScript exceptions (to confirm)
+
+The JS check allows the MIT, ISC, BSD, 0BSD, Unlicense, CC0, BlueOak and Python-2.0 licences, and dual licences through their permissive option. It also accepts these named exceptions, each with a reason in the script:
+
+- **`sharp` and `@img/*`** (Apache-2.0, LGPL-3.0 libvips binaries): optional image optimiser of Next.js. Not used by the static export and not in `out/`. The LGPL binary is not shipped, but it is in the install tree. Removing it would clear the exception.
+- **`@swc/helpers`** (Apache-2.0): a runtime helper that Next.js uses in its output. It ships in the bundle, so this needs an explicit decision.
+- **`detect-libc`** (Apache-2.0): platform detection for the sharp install.
+- **Playwright** (Apache-2.0), **`baseline-browser-mapping`** (Apache-2.0) and **`caniuse-lite`** (CC-BY-4.0): build-time and test tooling, not shipped.
+
+Apache-2.0-only packages are rejected by the crate policy above. Confirm whether `@swc/helpers` and the other Apache-2.0 exceptions are acceptable for the PWA.
 
 ## Source file headers
 
