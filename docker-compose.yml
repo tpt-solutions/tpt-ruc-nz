@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 TPT Solutions
+
+# Runs the tpt-ruc-nz backend. Start it with:
+#
+#   docker compose up -d
+#
+# The first start generates an API key and prints it. Read it again any time with:
+#
+#   docker compose logs tpt-ruc
+#
+# Settings can go in a .env file next to this one. See .env.example.
+
+services:
+  tpt-ruc:
+    build: .
+    image: tpt-ruc-nz-backend:local
+    restart: unless-stopped
+    ports:
+      # Only this computer can reach the server. To use it from a phone on the same
+      # network, change this to "8080:8080" and read the warning in the README first.
+      - "127.0.0.1:8080:8080"
+    volumes:
+      # Trip data and the saved API key live here. Back up this volume.
+      - tpt-ruc-data:/data
+    environment:
+      TPT_RUC_API_KEY: ${TPT_RUC_API_KEY:-}
+      TPT_RUC_CORS_ORIGINS: ${TPT_RUC_CORS_ORIGINS:-}
+
+volumes:
+  tpt-ruc-data:

@@ -20,7 +20,39 @@ Early development. Phase 0 (foundations) and Phase 1 (core maths) are in progres
 | RUC rate engine | `crates/tpt-ruc-core` | Not started (rates need verification) |
 | WASM bindings and PWA | `crates/tpt-ruc-wasm`, `pwa/` | Planned (Phase 2) |
 | ESP32 firmware | `crates/tpt-ruc-firmware` | Planned (Phase 3) |
-| Backend | `crates/tpt-ruc-backend` | Planned (Phase 4) |
+| Backend | `crates/tpt-ruc-backend` | Working: trips, users, reports, export, rate limits, Docker (Phase 4 in progress) |
+
+## Run the server
+
+You need Docker only. On Windows or Mac, install [Docker Desktop](https://www.docker.com/products/docker-desktop/). On Linux, install Docker Engine with the Compose plugin.
+
+```sh
+git clone <repository-url> tpt-ruc-nz
+cd tpt-ruc-nz
+docker compose up -d
+docker compose logs tpt-ruc
+```
+
+The first start creates an API key and prints it in the log, under the line "No API key was set". Copy it. Every request needs it. Then check that the server answers:
+
+```sh
+curl -H "Authorization: Bearer YOUR-KEY" http://localhost:8080/v1/trips
+```
+
+You should see `{"limit":100,"offset":0,"trips":[]}`. On Windows PowerShell, use `curl.exe` instead of `curl`.
+
+| To do this | Run |
+|---|---|
+| Stop the server, keeping your data | `docker compose down` |
+| Start it again | `docker compose up -d` |
+| Update after pulling new code | `git pull` then `docker compose up -d --build` |
+| Change settings | Copy `.env.example` to `.env`, edit it, then `docker compose up -d` |
+
+Your trips and the saved API key live in the `tpt-ruc-data` Docker volume. Back it up before you upgrade or delete the project.
+
+**Keep the server private.** The compose file only listens on `127.0.0.1`, so only this computer can reach it. Anyone who can read the Docker log can read the API key, so do not share that log. To reach the server from a phone, change the port in `docker-compose.yml` to `8080:8080`, and put it behind an HTTPS reverse proxy such as Caddy first. The key is sent with every request, so never expose the plain HTTP port to the internet.
+
+**Without Docker:** install [Rust](https://rustup.rs), then run `cargo run -p tpt-ruc-backend` from the project folder. The data and the key are kept in `./data`.
 
 ## Repository layout
 

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 TPT Solutions
+
+# Keep the build context small and free of local data and secrets.
+**/target/
+**/node_modules/
+**/.next/
+**/out/
+pwa/
+hardware/
+docs/
+.git/
+data/
+**/*.env
+.env
+**/api-key
+**/*.db
+**/*.db-wal
+**/*.db-shm
