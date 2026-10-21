@@ -115,8 +115,8 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 
 ### Storage
 - [ ] IndexedDB schema: vehicles, trips, segments, settings, device keys (defined in `lib/db.ts` with versioned migrations, using `idb` 8.0.4, ISC)
-- [ ] Storage layer with migrations (Dexie or idb; licence check) (`idb` chosen, since Dexie is Apache-2.0. Migrations are in place, but the IndexedDB calls have no browser test yet)
-- [ ] Export/import of local data (backup) (`exportBackup`, `parseBackup` and `restoreBackup` in `lib/db.ts`; the validator is unit-tested, and restore is not yet tested in a browser)
+- [x] Storage layer with migrations (`idb`, ISC; migrations and the backup round trip are tested in Chromium)
+- [x] Export/import of local data (backup) (download and restore from file, tested end to end; a non-backup file is refused)
 - [ ] Persistent storage request and quota handling (`requestPersistentStorage` is written but not yet called from the UI; quota handling is still to do)
 
 ### Features

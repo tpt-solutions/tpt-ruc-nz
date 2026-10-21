@@ -1,3 +1,4 @@
+import { Backup } from "@/components/Backup";
 import { RucCalculator } from "@/components/RucCalculator";
 import { Section43Gate } from "@/components/Section43Gate";
 import { Trips } from "@/components/Trips";
@@ -22,6 +23,7 @@ export default function Home() {
                 </div>
                 <Vehicles />
                 <Trips />
+                <Backup />
             </section>
         </Section43Gate>
     );

@@ -36,8 +36,8 @@ test("a vehicle added to the profile list survives a reload", async ({ page }) =
 
 test("calculator charges 100 km for a 2,000 kg diesel at the published rate", async ({ page }) => {
     await acceptNotice(page);
-    await page.getByLabel("Distance (km)").fill("100");
-    await page.getByLabel("RUC weight (kg)").first().fill("2000");
+    await page.getByLabel("Distance (km)", { exact: true }).fill("100");
+    await page.getByLabel("RUC weight (kg)", { exact: true }).first().fill("2000");
     await page.getByRole("button", { name: "Calculate" }).click();
 
     // 100 km at $76 per 1,000 km is $7.60 including GST.
@@ -47,7 +47,7 @@ test("calculator charges 100 km for a 2,000 kg diesel at the published rate", as
 
 test("calculator rejects a zero weight", async ({ page }) => {
     await acceptNotice(page);
-    await page.getByLabel("RUC weight (kg)").first().fill("0");
+    await page.getByLabel("RUC weight (kg)", { exact: true }).first().fill("0");
     await page.getByRole("button", { name: "Calculate" }).click();
     await expect(page.getByText("Enter a whole-number weight above zero.")).toBeVisible();
 });
