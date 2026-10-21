@@ -55,6 +55,8 @@ export interface DeviceSegment {
     startMs: number;
     endMs: number;
     distanceM: number;
+    /** Set once the segment has been assigned to a vehicle as a trip. */
+    vehicleId?: string;
 }
 
 export interface RucSchema extends DBSchema {

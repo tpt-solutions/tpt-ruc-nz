@@ -2,6 +2,7 @@
 // Copyright (c) 2026 TPT Solutions
 
 import { getDb, type DeviceSegment } from "./db";
+import { putTrip } from "./trips";
 
 /** The fields a downloaded segment carries. */
 export interface IncomingSegment {
@@ -87,4 +88,26 @@ export async function listDeviceSegments(): Promise<DeviceSegment[]> {
     const db = await getDb();
     const segments = await db.getAll("deviceSegments");
     return segments.sort((a, b) => a.startMs - b.startMs);
+}
+
+/** Lists the stored segments not yet assigned to a vehicle, oldest first. */
+export async function listUnassignedSegments(): Promise<DeviceSegment[]> {
+    const segments = await listDeviceSegments();
+    return segments.filter((segment) => segment.vehicleId === undefined);
+}
+
+/**
+ * Makes a device segment a trip of `vehicleId`. The trip takes the segment's id, so
+ * assigning the same segment again overwrites that trip instead of adding one.
+ */
+export async function assignSegment(segment: DeviceSegment, vehicleId: string): Promise<void> {
+    await putTrip({
+        id: segment.id,
+        vehicleId,
+        startMs: segment.startMs,
+        endMs: segment.endMs,
+        distanceM: segment.distanceM,
+    });
+    const db = await getDb();
+    await db.put("deviceSegments", { ...segment, vehicleId });
 }

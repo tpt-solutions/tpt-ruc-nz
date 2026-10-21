@@ -65,3 +65,26 @@ test("device segments are included in the exported backup", async ({ page }) => 
         { id: "7000-8000", startMs: 7000, endMs: 8000, distanceM: 40 },
     ]);
 });
+
+test("a device segment assigned to a vehicle becomes a trip", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("checkbox", { name: /understand this is an estimate tool/ }).check();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByLabel("Name", { exact: true }).fill("Ute");
+    await page.getByLabel("Vehicle RUC weight (kg)").fill("2000");
+    await page.getByRole("button", { name: "Add vehicle" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "Ute" }).first()).toBeVisible();
+
+    await page.getByLabel("Import segments file").setInputFiles({
+        name: "segments.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify([{ startMs: 9000, endMs: 10000, distanceM: 40000 }])),
+    });
+    await expect(page.getByRole("status")).toHaveText("Added 1 segments. 0 were already stored.");
+
+    await page.getByRole("button", { name: "Assign 9000-10000" }).click();
+    await expect(page.getByRole("status")).toHaveText("Assigned 40.000 km to a vehicle.");
+    // The segment has left the unassigned list, and its trip is in the trip list.
+    await expect(page.getByRole("button", { name: "Assign 9000-10000" })).toHaveCount(0);
+    await expect(page.getByRole("listitem").filter({ hasText: "40.000 km" }).first()).toBeVisible();
+});
