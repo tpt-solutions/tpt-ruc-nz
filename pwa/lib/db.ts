@@ -123,15 +123,18 @@ export interface Backup {
     trips: Trip[];
     segments: Segment[];
     settings: Setting[];
+    /** Device segments, added after version 1 was first written. Optional, so older files still load. */
+    deviceSegments?: DeviceSegment[];
 }
 
 /** Reads every store into a backup object. */
 export async function exportBackup(db: Db, nowMs: number = Date.now()): Promise<Backup> {
-    const [vehicles, trips, segments, settings] = await Promise.all([
+    const [vehicles, trips, segments, settings, deviceSegments] = await Promise.all([
         db.getAll("vehicles"),
         db.getAll("trips"),
         db.getAll("segments"),
         db.getAll("settings"),
+        db.getAll("deviceSegments"),
     ]);
     return {
         format: BACKUP_FORMAT,
@@ -141,6 +144,7 @@ export async function exportBackup(db: Db, nowMs: number = Date.now()): Promise<
         trips,
         segments,
         settings,
+        deviceSegments,
     };
 }
 
@@ -164,17 +168,24 @@ export function parseBackup(input: unknown): Backup {
             throw new TypeError(`backup field "${key}" must be an array`);
         }
     }
+    if (candidate.deviceSegments !== undefined && !Array.isArray(candidate.deviceSegments)) {
+        throw new TypeError(`backup field "deviceSegments" must be an array`);
+    }
     return input as Backup;
 }
 
 /** Writes a backup into the database. Records with the same key are replaced, so restoring twice is safe. */
 export async function restoreBackup(db: Db, backup: Backup): Promise<void> {
-    const tx = db.transaction(["vehicles", "trips", "segments", "settings"], "readwrite");
+    const tx = db.transaction(
+        ["vehicles", "trips", "segments", "settings", "deviceSegments"],
+        "readwrite",
+    );
     await Promise.all([
         ...backup.vehicles.map((v) => tx.objectStore("vehicles").put(v)),
         ...backup.trips.map((t) => tx.objectStore("trips").put(t)),
         ...backup.segments.map((s) => tx.objectStore("segments").put(s)),
         ...backup.settings.map((s) => tx.objectStore("settings").put(s)),
+        ...(backup.deviceSegments ?? []).map((d) => tx.objectStore("deviceSegments").put(d)),
         tx.done,
     ]);
 }

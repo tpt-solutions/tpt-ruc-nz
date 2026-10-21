@@ -44,4 +44,19 @@ describe("parseBackup", () => {
         const withoutTrips = { ...validBackup, trips: undefined };
         expect(() => parseBackup(withoutTrips)).toThrow('"trips" must be an array');
     });
+
+    it("accepts a version 1 backup written before device segments were added", () => {
+        expect(parseBackup(validBackup).deviceSegments).toBeUndefined();
+    });
+
+    it("accepts device segments when present", () => {
+        const withSegments = { ...validBackup, deviceSegments: [] };
+        expect(parseBackup(withSegments).deviceSegments).toEqual([]);
+    });
+
+    it("rejects device segments that are not an array", () => {
+        expect(() => parseBackup({ ...validBackup, deviceSegments: {} })).toThrow(
+            '"deviceSegments" must be an array',
+        );
+    });
 });

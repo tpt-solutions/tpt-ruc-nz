@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 test("device segments import once, and repeats are skipped", async ({ page }) => {
     await page.goto("/");
@@ -43,4 +44,24 @@ test("a file that is not a segment list is refused", async ({ page }) => {
         buffer: Buffer.from('{"hello":"world"}'),
     });
     await expect(page.getByText("Could not import that file: expected a JSON array")).toBeVisible();
+});
+
+test("device segments are included in the exported backup", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("checkbox", { name: /understand this is an estimate tool/ }).check();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByLabel("Import segments file").setInputFiles({
+        name: "segments.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify([{ startMs: 7000, endMs: 8000, distanceM: 40 }])),
+    });
+    await expect(page.getByRole("status")).toHaveText("Added 1 segments. 0 were already stored.");
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export backup" }).click();
+    const download = await downloadPromise;
+    const backup = JSON.parse(await readFile((await download.path()) as string, "utf8"));
+    expect(backup.deviceSegments).toEqual([
+        { id: "7000-8000", startMs: 7000, endMs: 8000, distanceM: 40 },
+    ]);
 });
