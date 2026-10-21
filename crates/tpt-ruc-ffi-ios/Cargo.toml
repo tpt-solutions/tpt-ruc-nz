@@ -1,0 +1,18 @@
+[package]
+name = "tpt-ruc-ffi-ios"
+description = "Swift bindings for tpt-ruc-core (liability and billable kilometres) via swift-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+swift-bridge = "0.1.59"
+tpt-ruc-ffi-common = { version = "0.1.0", path = "../tpt-ruc-ffi-common" }
+
+[lints]
+workspace = true

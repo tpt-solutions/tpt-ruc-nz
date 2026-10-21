@@ -1,0 +1,26 @@
+[package]
+name = "tpt-ruc-ffi-android"
+description = "Kotlin bindings for tpt-ruc-core (liability and billable kilometres) via the jni crate"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+jni = "0.22.4"
+tpt-ruc-ffi-common = { version = "0.1.0", path = "../tpt-ruc-ffi-common" }
+
+# The workspace forbids unsafe code. The JNI entry points below must be exported
+# with #[unsafe(no_mangle)] so the JVM can find them. That attribute is the only
+# unsafe item in this crate, and it is allowed here alone. Everything else still
+# gets the workspace's other lints.
+[lints.rust]
+unsafe_code = "allow"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

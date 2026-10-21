@@ -6,6 +6,9 @@ members = [
     "crates/tpt-ruc-wasm",
     "crates/tpt-ruc-firmware",
     "crates/tpt-ruc-backend",
+    "crates/tpt-ruc-ffi-ios",
+    "crates/tpt-ruc-ffi-android",
+    "crates/tpt-ruc-ffi-common",
 ]
 
 [workspace.package]
