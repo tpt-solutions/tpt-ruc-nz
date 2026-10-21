@@ -146,7 +146,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [ ] Verify the esp-hal and BLE stack (`esp-hal` 1.2.2, `esp-println`, `esp-backtrace` and `esp-alloc` are MIT/Apache and pass the device policy. The BLE stack is not chosen yet. The device policy has two advisory exceptions and one licence exception, in `firmware/esp/deny.toml`)
 - [x] GNSS UART reader task feeding `tpt-ruc-core` (`firmware/esp` reads UART1 at 9600 baud and runs the recorder. It links for ESP32-C6, ESP32-S3 and ESP32-P4, but none has been flashed or run yet)
 - [x] Distance accumulation on-device using the core (`Recorder` runs the core tracker on the device; host-tested)
-- [ ] Flash storage for trip segments (LittleFS or log-structured; wear levelling; power-fail safe)
+- [ ] Flash storage for trip segments (LittleFS or log-structured; wear levelling; power-fail safe) (log-structured format done and host-tested: CRC-checked append-only records, recovery after power loss, and a full log refuses writes. The flash driver behind `LogStorage` and wear levelling are still to do)
 - [ ] Data-loss prevention when BLE is disconnected (a bounded in-RAM segment queue that counts drops is done and tested; flash persistence and the BLE sender are still to do)
 - [ ] Custom BLE GATT service and UUID design (live data, trip sync, device info, time sync)
 - [x] MessagePack payload encoding of timestamp/lat/lon/speed/fix quality (version 1 array, pinned by golden bytes; `tpt-ruc-firmware::payload`)

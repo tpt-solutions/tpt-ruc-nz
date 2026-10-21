@@ -11,10 +11,12 @@
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 
+pub mod log;
 pub mod payload;
 pub mod queue;
 pub mod recorder;
 
+pub use log::{LogError, LogStorage, SegmentLog};
 pub use queue::SegmentQueue;
 pub use recorder::Recorder;
 
