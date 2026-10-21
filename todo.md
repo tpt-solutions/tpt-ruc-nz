@@ -148,9 +148,9 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Distance accumulation on-device using the core (`Recorder` runs the core tracker on the device; host-tested)
 - [ ] Flash storage for trip segments (LittleFS or log-structured; wear levelling; power-fail safe) (log-structured format done and host-tested: CRC-checked append-only records, recovery after power loss, and a full log refuses writes. The flash driver behind `LogStorage` and wear levelling are still to do)
 - [ ] Data-loss prevention when BLE is disconnected (a bounded in-RAM segment queue that counts drops is done and tested; flash persistence and the BLE sender are still to do)
-- [ ] Custom BLE GATT service and UUID design (live data, trip sync, device info, time sync)
+- [x] Custom BLE GATT service and UUID design (version 1 layout in `docs/ble-design.md`: live fix, segment transfer, control and device info characteristics. Not implemented yet)
 - [x] MessagePack payload encoding of timestamp/lat/lon/speed/fix quality (version 1 array, pinned by golden bytes; `tpt-ruc-firmware::payload`)
-- [ ] Chunking and MTU negotiation for trip history transfer
+- [ ] Chunking and MTU negotiation (chunk format and sizes are designed in `docs/ble-design.md`; not implemented or measured)
 - [ ] Pairing/bonding approach and device identity (per-device ed25519 keypair stored on device)
 - [ ] OTA update plan (decide now or defer)
 - [ ] Low-power modes and watchdog

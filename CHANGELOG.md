@@ -35,6 +35,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `tpt-ruc-firmware`: device-side GNSS logic, host-tested: NMEA line framing with overflow handling, GGA merged with the RMC date and speed, and conversion to Unix milliseconds. No hardware code yet.
 - `tpt-ruc-firmware`: chip feature flags, an on-device `Recorder` using the core tracker, a bounded segment queue that counts drops, and the version 1 MessagePack BLE payload (`rmp`, no_std).
 - `tpt-ruc-firmware`: append-only, CRC-checked segment log over a `LogStorage` trait. It recovers after power loss and refuses writes when full. Host-tested with RAM-backed storage. No flash driver yet.
+- `docs/ble-design.md`: recommended BLE stack (trouble-host on esp-radio) and the version 1 GATT layout for live fixes, segment transfer and control.
 - `firmware/esp`: device binary that reads the GNSS UART and records distance on the device. It builds for ESP32-C6, ESP32-S3 and ESP32-P4. Not yet flashed or run on a board.
 - `hardware/`: bench notes with the recommended boards, GNSS receiver, UART settings and pin map, and a BOM draft. Not yet verified on hardware.
 - CI: a `device` job builds the ESP32-C6 and ESP32-P4 binaries and runs cargo-deny with the device policy in `firmware/esp/deny.toml`.
