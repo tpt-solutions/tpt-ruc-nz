@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `tpt-ruc-backend`: generic eRUC export at `GET /v1/eruc/export` (`generic-json` and `generic-csv`, manager-only), an `ErucProvider` adapter trait, and the format in `docs/eruc-export.md`. No provider is pushed to yet.
+- `tpt-ruc-backend`: optional serving of the built web app from `TPT_RUC_PWA_DIR`, with path checks and static assets exempt from the API rate limit.
+- `tpt-ruc-backend`: an optional eRUC push queue, off unless `TPT_RUC_ERUC_PROVIDER` is set. Jobs are created, listed and inspected under `/v1/eruc/jobs`, with retries, a per-job audit log, and recovery after a restart. The only provider is the `dry-run` placeholder, which sends nothing.
+- Docs: a reverse-proxy (Caddy) and backup guide with restore testing, `docs/guides/reverse-proxy-and-backups.md`. The Traefik example is untested.
 - PWA: an upload schedule (manual, on open, every 15 minutes, hourly or daily) that also runs on coming back online and on returning to the tab, and Periodic Background Sync through the service worker where the browser supports it. The sync engine is bundled for the worker by `npm run build:sw` (rolldown, MIT). Background sync has not been run on a real installed app.
 - `tpt-ruc-backend`: vehicles and driver assignment, fleet summary, heavy-licence expiry alerts, optional retention, token rotation, device keys with signed uploads and replay protection, a monthly PDF report, and an OpenAPI description in `docs/api/openapi.yaml`.
 - `tpt-ruc-firmware`: a sector log for flash with round-robin wear levelling and power-cut tests, a per-device Ed25519 identity, and host-side BLE chunking and control-command parsing.

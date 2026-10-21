@@ -34,6 +34,10 @@ pub struct Config {
     pub cors_origins: Vec<String>,
     /// Trips older than this many days are deleted. `None` keeps trips forever.
     pub retention_days: Option<u32>,
+    /// Folder of the built web app, from `TPT_RUC_PWA_DIR`. `None` serves no pages.
+    pub pwa_dir: Option<PathBuf>,
+    /// The eRUC push provider named in `TPT_RUC_ERUC_PROVIDER`. `None` sends nothing.
+    pub eruc_provider: Option<String>,
 }
 
 /// Why the configuration cannot be used.
@@ -108,12 +112,23 @@ impl Config {
             },
         };
 
+        let eruc_provider = get("TPT_RUC_ERUC_PROVIDER")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+
+        let pwa_dir = get("TPT_RUC_PWA_DIR")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+
         Ok(Self {
             bind,
             database_url,
             api_key,
             cors_origins,
             retention_days,
+            pwa_dir,
+            eruc_provider,
         })
     }
 

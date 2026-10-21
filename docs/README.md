@@ -8,6 +8,7 @@ Start with the [README](../README.md) for a quick start. Then pick the guide tha
 
 - [Web app (PWA) guide](guides/pwa.md): calculate RUC and record trips in a browser.
 - [Self-hosting guide](guides/self-hosting.md): run the server with Docker, manage users, back up and upgrade.
+- [HTTPS and backups](guides/reverse-proxy-and-backups.md): put the server behind a reverse proxy, and test a restore.
 - [Frequently asked questions](guides/faq.md).
 - [Privacy statement](privacy.md): what is stored, where, and what is logged.
 
@@ -20,6 +21,7 @@ Start with the [README](../README.md) for a quick start. Then pick the guide tha
 
 ## Mobile apps
 
+- [eRUC export format](eruc-export.md): the generic export for eRUC providers, and the adapter trait. No provider adapter exists yet.
 - [Mobile bindings](mobile-ffi.md): the small API for iOS and Android.
 - [Native Bluetooth plan](mobile-ble-plan.md): blocked until devices and protocol bindings are ready.
 - Samples: [iOS](../samples/ios/README.md) and [Android](../samples/android/README.md). Both are untested.

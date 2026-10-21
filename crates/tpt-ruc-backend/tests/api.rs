@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tpt_ruc_backend::db::Database;
+use tpt_ruc_backend::eruc::DryRun;
 use tpt_ruc_backend::ratelimit::RateLimiter;
 use tpt_ruc_backend::reports::nzd;
 use tpt_ruc_backend::server::serve;
@@ -28,6 +29,8 @@ fn state() -> AppState {
         api_key: KEY.to_owned(),
         cors_origins: vec![ORIGIN.to_owned()],
         limiter: RateLimiter::default(),
+        pwa_dir: None,
+        eruc_push: None,
     }
 }
 
@@ -1625,4 +1628,233 @@ async fn the_monthly_pdf_is_a_pdf_for_managers_only() {
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
     assert!(bytes.starts_with(b"%PDF-"));
     assert!(bytes.ends_with(b"%%EOF\n") || bytes.windows(5).any(|w| w == b"%%EOF"));
+}
+
+#[tokio::test]
+async fn eruc_export_is_manager_only_and_leaves_out_the_driver() {
+    let state = state();
+    let (_, driver) = create_user(&state, "Aroha", "driver").await;
+    let (_, manager) = create_user(&state, "Mira", "manager").await;
+    ingest_trips(
+        &state,
+        vec![
+            trip("e-1", "2026-10-01", 12_345.0),
+            trip("e-2", "2026-10-20", 1_000.0),
+            trip("e-3", "2026-11-01", 500.0),
+        ],
+    )
+    .await;
+
+    let (status, _) = send_as(&state, &driver, Method::GET, "/v1/eruc/export", None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    let (status, headers, body) = send_full(
+        &state,
+        Method::GET,
+        "/v1/eruc/export?from=2026-10-01&to=2026-10-31",
+        None,
+        false,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(body["error"], "unauthorized");
+    assert!(headers.get(header::CONTENT_DISPOSITION).is_none());
+
+    let (status, body) = send_as(
+        &state,
+        &manager,
+        Method::GET,
+        "/v1/eruc/export?from=2026-10-01&to=2026-10-31",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["format"], "tpt-ruc-eruc");
+    assert_eq!(body["from"], "2026-10-01");
+    let records = body["records"].as_array().unwrap();
+    assert_eq!(records.len(), 2, "{body}");
+    assert_eq!(records[0]["trip_id"], "e-1");
+    assert_eq!(records[0]["distance_km"], "12.345");
+    assert_eq!(records[0]["vehicle_type"], "1");
+    assert!(records[0].get("user_id").is_none());
+    let expected = nzd(expected_incl_gst(TRIP_DATE, 12_345.0) as i64);
+    assert_eq!(records[0]["charge_incl_gst_nzd"], expected);
+}
+
+#[tokio::test]
+async fn eruc_export_csv_matches_the_trip_report_figures() {
+    let state = state();
+    ingest_trips(&state, vec![trip("c-1", "2026-10-01", 12_345.0)]).await;
+
+    let (status, content_type, csv) = get_text(
+        &state,
+        "/v1/eruc/export?provider=generic-csv&from=2026-10-01&to=2026-10-31",
+        true,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(content_type, "text/csv; charset=utf-8");
+    let lines: Vec<&str> = csv.split("\r\n").filter(|l| !l.is_empty()).collect();
+    assert_eq!(lines.len(), 2, "{csv}");
+    assert!(lines[0].starts_with("trip_id,trip_date,vehicle_id,vehicle_type"));
+
+    let (_, _, trips_csv) = get_text(&state, "/v1/reports/trips.csv", true).await;
+    let trip_line = trips_csv.split("\r\n").nth(1).unwrap();
+    let billed = trip_line.split(',').nth(6).unwrap();
+    assert_eq!(billed, "12.345");
+    assert!(lines[1].contains(",12.345,"), "{csv}");
+}
+
+#[tokio::test]
+async fn eruc_export_rejects_unknown_providers() {
+    let state = state();
+    let (status, _, body) = get_text(&state, "/v1/eruc/export?provider=nope", true).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+}
+
+/// A folder holding a small built site, and a sibling folder outside it that
+/// must never be served. Both are removed when the guard is dropped.
+struct SiteDir {
+    site: std::path::PathBuf,
+    outside: std::path::PathBuf,
+}
+
+impl SiteDir {
+    fn new(label: &str) -> Self {
+        let site =
+            std::env::temp_dir().join(format!("tpt-ruc-site-{label}-{}", std::process::id()));
+        let outside = site.with_file_name(format!(
+            "tpt-ruc-site-{label}-{}-outside",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(site.join("vehicles")).unwrap();
+        std::fs::create_dir_all(site.join("_next").join("static")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(site.join("index.html"), "<!doctype html>home").unwrap();
+        std::fs::write(site.join("vehicles").join("index.html"), "vehicles").unwrap();
+        std::fs::write(site.join("_next").join("static").join("app.js"), "1").unwrap();
+        std::fs::write(outside.join("secret.txt"), "private").unwrap();
+        Self { site, outside }
+    }
+}
+
+impl Drop for SiteDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.site);
+        let _ = std::fs::remove_dir_all(&self.outside);
+    }
+}
+
+#[tokio::test]
+async fn web_app_is_served_only_when_configured() {
+    let dirs = SiteDir::new("off");
+    let (status, _, _) = get_text(&state(), "/", false).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let state = AppState {
+        pwa_dir: Some(dirs.site.clone()),
+        ..state()
+    };
+    let (status, content_type, body) = get_text(&state, "/", false).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(content_type, "text/html; charset=utf-8");
+    assert!(body.contains("home"));
+
+    let (status, _, body) = get_text(&state, "/vehicles", false).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, "vehicles");
+
+    let (status, content_type, _) = get_text(&state, "/_next/static/app.js", false).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(content_type, "text/javascript; charset=utf-8");
+
+    let outside = dirs
+        .outside
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let escapes = [
+        format!("/../{outside}/secret.txt"),
+        format!("/%2e%2e/{outside}/secret.txt"),
+        "/.env".to_owned(),
+    ];
+    for path in &escapes {
+        let (status, _, _) = get_text(&state, path, false).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+    }
+
+    let (status, _, _) = get_text(&state, "/v1/nothing-here", true).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn push_jobs_need_a_configured_provider_and_a_manager() {
+    let unconfigured = state();
+    let (_, manager) = create_user(&unconfigured, "Mira", "manager").await;
+    let body = json!({ "provider": "dry-run", "from": "2026-10-01", "to": "2026-10-31" });
+    let (status, _) = send_as(
+        &unconfigured,
+        &manager,
+        Method::POST,
+        "/v1/eruc/jobs",
+        Some(body.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+
+    let state = AppState {
+        eruc_push: Some(Arc::new(DryRun)),
+        ..state()
+    };
+    let (_, driver) = create_user(&state, "Aroha", "driver").await;
+    let (_, manager) = create_user(&state, "Mira", "manager").await;
+    let (status, _) = send_as(
+        &state,
+        &driver,
+        Method::POST,
+        "/v1/eruc/jobs",
+        Some(body.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    let (status, created) =
+        send_as(&state, &manager, Method::POST, "/v1/eruc/jobs", Some(body)).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{created}");
+    assert_eq!(created["status"], "queued");
+    assert_eq!(created["provider"], "dry-run");
+    let id = created["id"].as_i64().unwrap();
+
+    let (status, list) = send_as(&state, &manager, Method::GET, "/v1/eruc/jobs", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list["jobs"][0]["id"], id);
+
+    let (status, detail) = send_as(
+        &state,
+        &manager,
+        Method::GET,
+        &format!("/v1/eruc/jobs/{id}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(detail["job"]["id"], id);
+    assert_eq!(detail["audit"][0]["event"], "queued");
+
+    let (status, _) = send_as(&state, &manager, Method::GET, "/v1/eruc/jobs/999", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = send_as(
+        &state,
+        &manager,
+        Method::GET,
+        "/v1/eruc/jobs/not-a-number",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let wrong = json!({ "provider": "other", "from": "2026-10-01", "to": "2026-10-31" });
+    let (status, _) = send_as(&state, &manager, Method::POST, "/v1/eruc/jobs", Some(wrong)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }

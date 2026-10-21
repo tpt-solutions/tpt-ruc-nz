@@ -197,9 +197,9 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ### Reports & eRUC
 - [x] CSV reports formatted for NZTA auditing (`GET /v1/reports/trips.csv`, one line per trip with distance, billed km, rate version and charge; `GET /v1/reports/monthly.csv`, totals per month and vehicle type. Both take optional `from` and `to` dates. Charges are NZD to the cent, rounded once from exact totals. Text fields are escaped, and formula-like values are neutralised. PDF reports are still to do)
 - [x] PDF reports (licence-checked PDF crate, e.g. printpdf or genpdf) (`GET /v1/reports/monthly.pdf` uses lopdf 0.46 with default features off, MIT. pdf-writer was blocked by ryu)
-- [ ] Define the generic eRUC export schema (JSON/CSV) and document it in `docs/`
-- [ ] `ErucProvider` adapter trait and a generic exporter
-- [ ] Push-to-provider job queue with retries and audit log
+- [x] Define the generic eRUC export schema (JSON/CSV) and document it in `docs/` (`docs/eruc-export.md`; `GET /v1/eruc/export` serves `generic-json` and `generic-csv`, manager-only, with tests)
+- [x] `ErucProvider` adapter trait and a generic exporter (`crates/tpt-ruc-backend/src/eruc.rs`. Adapters only build payloads. Nothing is sent to a provider, and no provider adapter exists yet)
+- [x] Push-to-provider job queue with retries and audit log (`eruc_jobs.rs`, migration 0006. Jobs are queued with `POST /v1/eruc/jobs`, retried with doubling delays up to 5 attempts, requeued after a restart, and logged per job. Off unless `TPT_RUC_ERUC_PROVIDER` is set. Tested with a fake provider and the `dry-run` placeholder, which sends nothing. No real provider exists)
 - [ ] Placeholder tasks per real provider (blocked on you supplying API docs)
 
 ### PWA sync
@@ -215,10 +215,10 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Multi-stage Dockerfile (small image, non-root, healthcheck) (`Dockerfile`: a Rust build stage and a Debian slim runtime that runs as user 10001. The health check is `tpt-ruc-backend healthcheck`, so no `curl` is needed. Not yet built in a Docker environment, only its build command has been checked outside Docker)
 - [ ] Multi-arch images (amd64 + arm64 for Raspberry Pi/NAS), published to ghcr.io from CI
 - [ ] `docker-compose.yml` (SQLite default; Postgres profile) with the `./data` volume (`docker-compose.yml` runs with SQLite on a named volume, `tpt-ruc-data`, because a bind-mounted host folder is not writable by the container's user. The Postgres profile is not built)
-- [ ] Optional bundled PWA static files served by the backend
-- [ ] Backups guidance, TLS/reverse-proxy guide (Caddy/Traefik example)
+- [x] Optional bundled PWA static files served by the backend (`TPT_RUC_PWA_DIR`, off by default. `static_files.rs` refuses encoded, dot and `..` paths and any file that resolves outside the folder. Static GETs are exempt from the API rate limit. Covered by API tests, not run in a browser)
+- [x] Backups guidance, TLS/reverse-proxy guide (Caddy/Traefik example) (`docs/guides/reverse-proxy-and-backups.md`. The Caddy example is the recommended one. The Traefik example is an untested sketch. The backup commands need the volume's full name, which Docker prefixes with the project folder)
 - [ ] Integration tests: PWA ↔ backend end-to-end
-- [ ] Security review: input validation, auth, dependency audit (`cargo audit`) (an internal review fixed a cross-user trip-ID leak, migration 0005. Advisories are checked by `cargo deny`. `cargo audit` itself has not been run, and a human review is still needed)
+- [ ] Security review: input validation, auth, dependency audit (`cargo audit`) (an internal review fixed a cross-user trip-ID leak, migration 0005. Advisories are checked by `cargo deny`. `cargo audit` was run on 2026-10-22 with no advisories reported. A human review is still needed)
 - [ ] Phase 4 exit: tag `v0.4.0`, `docker compose up` works on a Raspberry Pi
 
 ## Phase 5 – Hardware Refinement & Mobile FFI (Weeks 12+)

@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use http::header::{self, HeaderValue};
-use http::{Request, Response, StatusCode};
+use http::{Method, Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full, LengthLimitError, Limited};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
@@ -74,11 +74,19 @@ async fn serve_one(
     client: IpAddr,
     request: Request<Incoming>,
 ) -> Response<Full<Bytes>> {
-    if let Err(wait) = state.limiter.check_request(client, Instant::now()) {
-        return too_many_requests(wait);
+    let (parts, body) = request.into_parts();
+
+    // Pages and their assets come in bursts of dozens of files per load, so they
+    // do not use up the API request budget. The API paths stay limited.
+    let serves_asset = state.pwa_dir.is_some()
+        && (parts.method == Method::GET || parts.method == Method::HEAD)
+        && !parts.uri.path().starts_with("/v1/");
+    if !serves_asset {
+        if let Err(wait) = state.limiter.check_request(client, Instant::now()) {
+            return too_many_requests(wait);
+        }
     }
 
-    let (parts, body) = request.into_parts();
     let response = match Limited::new(body, MAX_BODY_BYTES).collect().await {
         Ok(collected) => handle(state, Request::from_parts(parts, collected.to_bytes())).await,
         Err(error) if error.downcast_ref::<LengthLimitError>().is_some() => json_response(

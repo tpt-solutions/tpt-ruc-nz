@@ -4,7 +4,7 @@ Written for: the person who will run the server on their own computer, NAS or Ra
 
 The backend stores trip summaries, users and reports. You can run it on your own machine. Nothing is sent to TPT Solutions.
 
-> The web app (PWA) does not talk to the server yet. Trip sync is still being built. Today the server is an API you can call directly, for example with `curl`. See [PWA guide](pwa.md).
+The web app (PWA) can upload its trips to the server from its sync panel. See [PWA guide](pwa.md). You can also call the API directly, for example with `curl`.
 
 ## What you need
 
@@ -69,6 +69,8 @@ The server also reads these variables. The Docker image already sets them, so yo
 | `TPT_RUC_DATABASE_URL` | `sqlite://data/tpt-ruc.db` | `sqlite:///data/tpt-ruc.db` | Where the database file lives. |
 | `RUST_LOG` | `info` | `info` | How much to log: `error`, `warn`, `info`, `debug`. |
 | `TPT_RUC_RETENTION_DAYS` | off | off | Optional. Delete trips older than this many days, for every user. Checked every hour. |
+| `TPT_RUC_ERUC_PROVIDER` | off | off | Optional. Name of an eRUC push provider. The only one so far is `dry-run`, which sends nothing. See [eRUC export format](../eruc-export.md). |
+| `TPT_RUC_PWA_DIR` | off | off | Optional. A folder with the built web app (`pwa/out`). When set, the server serves the app on its own address. |
 
 ## Users and roles
 
@@ -97,31 +99,25 @@ curl -X DELETE -H "Authorization: Bearer YOUR-KEY" http://localhost:8080/v1/user
 
 - `GET /v1/reports/trips.csv`: one row per trip, for audit. Manager or admin only.
 - `GET /v1/reports/monthly.csv`: totals per month and vehicle type. Manager or admin only.
+- `GET /v1/reports/monthly.pdf`: the same monthly totals as a PDF. Manager or admin only.
+- `GET /v1/eruc/export`: trips in a generic eRUC format, as JSON or CSV. Manager or admin only. See [eRUC export format](../eruc-export.md).
 - `GET /v1/export`: every trip you may see, as JSON.
 
 The report URLs accept `from` and `to` dates, written as `2026-10-01`, to limit the period.
 
 ## Backups
 
-All data is in one place: the `tpt-ruc-data` Docker volume. It holds the database and the saved API key.
+All data is in one place: a Docker volume whose name ends in `tpt-ruc-data`. It holds the database and the saved API key.
 
-To back it up, stop the server and copy the volume:
-
-```sh
-docker compose down
-docker run --rm -v tpt-ruc-data:/data -v "$PWD":/backup alpine tar czf /backup/tpt-ruc-backup.tar.gz -C /data .
-docker compose up -d
-```
+Stop the server, copy the volume to an archive, then start the server again. [HTTPS, backup routines and restore tests](reverse-proxy-and-backups.md) give the exact commands, and explain how to find the volume's full name.
 
 Keep the backup safe. It contains your trips and your API key. Store it somewhere private, and test that you can restore it.
-
-To restore, reverse the steps: stop the server, unpack the archive into the volume, then start the server again.
 
 ## Keep it private
 
 - The compose file listens only on `127.0.0.1`. Only this computer can reach the server.
 - Anyone who can read `docker compose logs` can read the API key. Do not share that log.
-- To reach the server from another device, you must put it behind HTTPS first. A reverse proxy such as Caddy can do that. Without HTTPS, the key travels in plain text on your network.
+- To reach the server from another device, you must put it behind HTTPS first. A reverse proxy such as Caddy can do that, and [the guide](reverse-proxy-and-backups.md) shows how. Without HTTPS, the key travels in plain text on your network.
 - The server limits each client to 120 requests a minute. After 10 failed key checks within 15 minutes, a client is blocked for those 15 minutes.
 
 ## Upgrading

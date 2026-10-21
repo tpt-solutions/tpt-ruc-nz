@@ -204,12 +204,12 @@ pub async fn monthly_pdf(
 }
 
 /// A header line, terminated with CRLF.
-fn header_line(header: &str) -> String {
+pub(crate) fn header_line(header: &str) -> String {
     format!("{header}\r\n")
 }
 
 /// Joins fields into one CRLF-terminated line. The fields must already be escaped.
-fn data_line(fields: &[String]) -> String {
+pub(crate) fn data_line(fields: &[String]) -> String {
     format!("{}\r\n", fields.join(","))
 }
 
@@ -244,7 +244,7 @@ pub fn km(metres: i64) -> String {
 }
 
 /// Builds a CSV download response.
-fn csv_response(filename: &str, body: String) -> Response<Full<Bytes>> {
+pub(crate) fn csv_response(filename: &str, body: String) -> Response<Full<Bytes>> {
     let mut response = Response::new(Full::new(Bytes::from(body)));
     *response.status_mut() = StatusCode::OK;
     let headers = response.headers_mut();

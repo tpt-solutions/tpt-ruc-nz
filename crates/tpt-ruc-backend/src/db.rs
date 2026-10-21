@@ -29,6 +29,11 @@ const MIGRATIONS: &[(i64, &str, &str)] = &[
         "scoped_trip_ids",
         include_str!("../migrations/0005_scoped_trip_ids.sql"),
     ),
+    (
+        6,
+        "eruc_jobs",
+        include_str!("../migrations/0006_eruc_jobs.sql"),
+    ),
 ];
 
 /// A shared handle to the SQLite database.
@@ -176,7 +181,10 @@ mod tests {
         let connection = version_one_database();
         migrate(&connection).unwrap();
 
-        assert_eq!(applied_versions(&connection).unwrap(), vec![1, 2, 3, 4, 5]);
+        assert_eq!(
+            applied_versions(&connection).unwrap(),
+            vec![1, 2, 3, 4, 5, 6]
+        );
         let (count, owner): (i64, Option<String>) = connection
             .query_row("SELECT COUNT(*), MAX(user_id) FROM trips", [], |row| {
                 Ok((row.get(0)?, row.get(1)?))
@@ -191,6 +199,9 @@ mod tests {
         let connection = version_one_database();
         migrate(&connection).unwrap();
         migrate(&connection).unwrap();
-        assert_eq!(applied_versions(&connection).unwrap(), vec![1, 2, 3, 4, 5]);
+        assert_eq!(
+            applied_versions(&connection).unwrap(),
+            vec![1, 2, 3, 4, 5, 6]
+        );
     }
 }

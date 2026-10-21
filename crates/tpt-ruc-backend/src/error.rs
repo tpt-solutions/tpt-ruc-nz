@@ -29,6 +29,8 @@ pub enum ApiError {
     NotFound,
     /// A device upload reused a sequence number, or sent one older than the last accepted.
     Replay,
+    /// A feature is switched off or not configured on this server. The message says what.
+    Unavailable(String),
     /// Something failed on the server. The detail is logged, not returned.
     Internal,
 }
@@ -67,6 +69,10 @@ impl ApiError {
             Self::Replay => json_response(
                 StatusCode::CONFLICT,
                 &json!({ "error": "sequence already used or older than the last upload from this device" }),
+            ),
+            Self::Unavailable(message) => json_response(
+                StatusCode::SERVICE_UNAVAILABLE,
+                &json!({ "error": message }),
             ),
             Self::Internal => json_response(
                 StatusCode::INTERNAL_SERVER_ERROR,

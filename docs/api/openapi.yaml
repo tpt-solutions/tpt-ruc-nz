@@ -244,6 +244,87 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/eruc/export:
+    get:
+      tags: [reports]
+      summary: Trips in the generic eRUC format, as JSON or CSV
+      description: Managers and admins only. See docs/eruc-export.md for both layouts.
+      parameters:
+        - { $ref: "#/components/parameters/From" }
+        - { $ref: "#/components/parameters/To" }
+        - name: provider
+          in: query
+          required: false
+          description: "generic-json (default) or generic-csv. Any other value is a bad request."
+          schema: { type: string, enum: [generic-json, generic-csv], default: generic-json }
+      responses:
+        "200":
+          description: The export, as a download. The media type depends on the provider.
+          content:
+            application/json:
+              schema: { type: object }
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/eruc/jobs:
+    get:
+      tags: [reports]
+      summary: Recent eRUC push jobs, newest first
+      description: Managers and admins only. Empty unless TPT_RUC_ERUC_PROVIDER is set.
+      responses:
+        "200":
+          description: The most recent 100 jobs.
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [reports]
+      summary: Queue an eRUC export to the configured push provider
+      description: Managers and admins only. Returns 503 when no provider is configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, from, to]
+              properties:
+                provider: { type: string, example: dry-run }
+                from: { type: string, example: "2026-10-01" }
+                to: { type: string, example: "2026-10-31" }
+      responses:
+        "202":
+          description: The queued job.
+          content:
+            application/json:
+              schema: { type: object }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { description: No eRUC push provider is configured. }
+  /v1/eruc/jobs/{id}:
+    get:
+      tags: [reports]
+      summary: One eRUC push job, with its audit log
+      description: Managers and admins only.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: The job and its audit entries, oldest first.
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /v1/fleet/summary:
     get:
       tags: [reports]

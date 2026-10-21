@@ -16,6 +16,8 @@ use tpt_ruc_backend::apikey::{self, KeySource};
 use tpt_ruc_backend::config::{Config, DEFAULT_BIND};
 use tpt_ruc_backend::data::run_retention;
 use tpt_ruc_backend::db::Database;
+use tpt_ruc_backend::eruc::{push_provider_named, PushProvider};
+use tpt_ruc_backend::eruc_jobs::run_worker;
 use tpt_ruc_backend::healthcheck;
 use tpt_ruc_backend::ratelimit::RateLimiter;
 use tpt_ruc_backend::server::serve;
@@ -56,6 +58,12 @@ async fn run() -> Result<(), Box<dyn Error>> {
         .init();
 
     let config = Config::from_env()?;
+    if let Some(dir) = &config.pwa_dir {
+        if !dir.is_dir() {
+            return Err(format!("TPT_RUC_PWA_DIR is not a folder: {}", dir.display()).into());
+        }
+        tracing::info!(path = %dir.display(), "serving the web app");
+    }
     let db = Database::open(&config.database_url)?;
     let key = apikey::resolve(config.api_key.clone(), &config.data_dir())?;
     match &key.source {
@@ -70,12 +78,31 @@ async fn run() -> Result<(), Box<dyn Error>> {
         ),
     }
 
+    let eruc_push: Option<Arc<dyn PushProvider>> =
+        match &config.eruc_provider {
+            Some(name) => Some(push_provider_named(name).ok_or_else(|| {
+                format!("TPT_RUC_ERUC_PROVIDER names an unknown provider: {name}")
+            })?),
+            None => None,
+        };
+
     let state = Arc::new(AppState {
         db,
         api_key: key.key,
         cors_origins: config.cors_origins,
         limiter: RateLimiter::default(),
+        pwa_dir: config.pwa_dir,
+        eruc_push: eruc_push.clone(),
     });
+
+    if let Some(provider) = eruc_push {
+        tracing::info!(provider = provider.id(), "eRUC push is on");
+        tokio::spawn(run_worker(
+            Arc::clone(&state),
+            provider,
+            std::time::Duration::from_secs(60),
+        ));
+    }
 
     if let Some(days) = config.retention_days {
         tracing::info!(days, "automatic retention is on");

@@ -21,16 +21,21 @@ pub mod data;
 pub mod db;
 pub mod devices;
 pub mod error;
+pub mod eruc;
+pub mod eruc_jobs;
 pub mod fleet;
 pub mod healthcheck;
 pub mod pdf;
 pub mod ratelimit;
 pub mod reports;
 pub mod server;
+pub mod static_files;
 pub mod trips;
 pub mod users;
 pub mod vehicles;
 
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 
 use bytes::Bytes;
@@ -43,6 +48,7 @@ use serde_json::json;
 use crate::auth::{Principal, Role};
 use crate::db::Database;
 use crate::error::ApiError;
+use crate::eruc::PushProvider;
 
 /// Largest request body accepted. A full batch of trips is far smaller than this.
 pub const MAX_BODY_BYTES: usize = 256 * 1024;
@@ -57,6 +63,10 @@ pub struct AppState {
     pub cors_origins: Vec<String>,
     /// Request and failed-login limits, applied per client address.
     pub limiter: ratelimit::RateLimiter,
+    /// Folder of the built web app to serve, from `TPT_RUC_PWA_DIR`. `None` serves no pages.
+    pub pwa_dir: Option<PathBuf>,
+    /// The provider eRUC jobs are pushed to, from `TPT_RUC_ERUC_PROVIDER`. `None` disables pushing.
+    pub eruc_push: Option<Arc<dyn PushProvider>>,
 }
 
 /// Handles one request. The body has already been read, and is at most [`MAX_BODY_BYTES`].
@@ -177,6 +187,45 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
             };
             result.unwrap_or_else(|error| error.into_response())
         }
+        "/v1/eruc/export" => {
+            let principal = match authorize(state, request, &[Method::GET]).await {
+                Ok(principal) => principal,
+                Err(response) => return response,
+            };
+            if let Err(error) = principal.require(Role::Manager) {
+                return error.into_response();
+            }
+            eruc::export(state, query)
+                .await
+                .unwrap_or_else(|error| error.into_response())
+        }
+        "/v1/eruc/jobs" => {
+            let principal = match authorize(state, request, &[Method::GET, Method::POST]).await {
+                Ok(principal) => principal,
+                Err(response) => return response,
+            };
+            if let Err(error) = principal.require(Role::Manager) {
+                return error.into_response();
+            }
+            let result = if method == Method::POST {
+                eruc_jobs::create(state, &principal, request.body()).await
+            } else {
+                eruc_jobs::list(state).await
+            };
+            result.unwrap_or_else(|error| error.into_response())
+        }
+        _ if path.starts_with("/v1/eruc/jobs/") => {
+            let principal = match authorize(state, request, &[Method::GET]).await {
+                Ok(principal) => principal,
+                Err(response) => return response,
+            };
+            if let Err(error) = principal.require(Role::Manager) {
+                return error.into_response();
+            }
+            eruc_jobs::get(state, &path["/v1/eruc/jobs/".len()..])
+                .await
+                .unwrap_or_else(|error| error.into_response())
+        }
         "/v1/fleet/summary" | "/v1/alerts" => {
             let principal = match authorize(state, request, &[Method::GET]).await {
                 Ok(principal) => principal,
@@ -233,7 +282,15 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         _ if path == "/v1/vehicles" || path.starts_with("/v1/vehicles/") => {
             vehicles::route(state, request).await
         }
-        _ => json_response(StatusCode::NOT_FOUND, &json!({ "error": "not found" })),
+        _ => match &state.pwa_dir {
+            Some(root)
+                if !path.starts_with("/v1/")
+                    && (method == Method::GET || method == Method::HEAD) =>
+            {
+                static_files::serve(root, path, method == Method::HEAD).await
+            }
+            _ => json_response(StatusCode::NOT_FOUND, &json!({ "error": "not found" })),
+        },
     }
 }
 
