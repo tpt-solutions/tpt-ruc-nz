@@ -593,6 +593,7 @@ pub const NZTA_2026_08_06: RateTable = RateTable {
 
 /// Additional licence for an overweight permit. Priced per km, not per 1,000 km.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct AdditionalLicence {
     /// Vehicle type code. Combinations are keyed `comb5` to `comb11` by axle count.
     pub type_code: &'static str,
@@ -796,6 +797,7 @@ pub fn additional_liability(
 
 /// How a distance licence was bought. The fee depends on the channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PurchaseMethod {
     /// Online, or through the NZTA app.
     Online,

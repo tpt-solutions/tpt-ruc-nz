@@ -18,6 +18,7 @@
 /// A calendar date used to pick the rate table in force. Field order makes
 /// the derived ordering chronological.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct RateDate {
     /// Full year, for example 2026.
     pub year: u16,
@@ -36,6 +37,7 @@ pub const EV_LIABLE_FROM: RateDate = RateDate {
 
 /// A vehicle as it is charged for RUC.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Vehicle {
     /// NZTA RUC vehicle type code, for example `"1"` or `"H61"`. Chosen from the
     /// vehicle's configuration, as NZTA assigns it.
@@ -49,6 +51,7 @@ pub struct Vehicle {
 
 /// One pricing rule. It applies when `min_gross_kg < gross_kg <= max_gross_kg`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Rule {
     /// Vehicle type code this rule prices.
     pub type_code: &'static str,
@@ -62,6 +65,7 @@ pub struct Rule {
 
 /// A versioned set of rates in force from `effective` until the next table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct RateTable {
     /// Identifier cited on every liability figure, for example a source and retrieval date.
     pub version: &'static str,
@@ -78,6 +82,7 @@ pub type RateSchedule = &'static [RateTable];
 
 /// The liability for one trip or period, with rounding already applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Liability {
     /// Version of the table used.
     pub rate_version: &'static str,
@@ -93,6 +98,7 @@ pub struct Liability {
 
 /// Why a liability could not be calculated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum RucError {
     /// The vehicle has a zero weight or an empty type code.
     InvalidVehicle,

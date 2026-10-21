@@ -9,7 +9,8 @@
 #![cfg(feature = "serde")]
 
 use serde_json::{json, Value};
-use tpt_ruc_core::{Config, Coordinate, Fix, FixQuality, Segment};
+use tpt_ruc_core::ruc_rates::PurchaseMethod;
+use tpt_ruc_core::{Config, Coordinate, Fix, FixQuality, Liability, Segment, Vehicle};
 
 const GOLDEN_FIX_V1: &str = include_str!("golden/fix_v1.json");
 
@@ -91,4 +92,49 @@ fn segment_msgpack_round_trips() {
     let bytes = rmp_serde::to_vec_named(&segment).unwrap();
     let decoded: Segment = rmp_serde::from_slice(&bytes).unwrap();
     assert_eq!(decoded, segment);
+}
+
+#[test]
+fn liability_serialises_with_named_money_fields() {
+    // Output-only: the RUC models hold `'static` borrows, so they encode but do not decode.
+    let liability = Liability {
+        rate_version: "2026-08-06",
+        billed_metres: 12_345,
+        incl_gst_micros: 4_000_000,
+        excl_gst_micros: 3_478_261,
+        gst_micros: 521_739,
+    };
+    let encoded = serde_json::to_value(liability).unwrap();
+    assert_eq!(
+        encoded,
+        json!({
+            "rate_version": "2026-08-06",
+            "billed_metres": 12345,
+            "incl_gst_micros": 4000000,
+            "excl_gst_micros": 3478261,
+            "gst_micros": 521739
+        })
+    );
+}
+
+#[test]
+fn vehicle_serialises_rate_type_and_weight() {
+    let vehicle = Vehicle {
+        rate_type: "H61",
+        gross_kg: 44_000,
+        electric: false,
+    };
+    let encoded = serde_json::to_value(vehicle).unwrap();
+    assert_eq!(
+        encoded,
+        json!({ "rate_type": "H61", "gross_kg": 44000, "electric": false })
+    );
+}
+
+#[test]
+fn purchase_method_round_trips() {
+    let encoded = serde_json::to_value(PurchaseMethod::Agent).unwrap();
+    assert_eq!(encoded, json!("Agent"));
+    let decoded: PurchaseMethod = serde_json::from_value(encoded).unwrap();
+    assert_eq!(decoded, PurchaseMethod::Agent);
 }

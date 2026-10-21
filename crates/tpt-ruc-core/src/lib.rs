@@ -12,6 +12,7 @@
 
 pub mod coord;
 pub mod distance;
+pub mod licence;
 pub mod nmea;
 pub mod ruc;
 pub mod ruc_rates;
