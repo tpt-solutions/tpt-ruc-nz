@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) 2026 TPT Solutions
+
+# Builds the mobile bindings: the Android .so (cargo-ndk) and the iOS XCFramework
+# (swift-bridge). Manual only, so it does not run on every push. It builds the code.
+# It does not test BLE, which needs a phone.
+name: Mobile bindings
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  android:
+    name: Android (.so)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Build the .so for each ABI
+        run: |
+          # The runner image sets the newest NDK path; cargo-ndk reads ANDROID_NDK_HOME.
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          sh crates/tpt-ruc-ffi-android/build-android.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tpt-ruc-ffi-android-jniLibs
+          path: samples/android/app/src/main/jniLibs
+
+  ios:
+    name: iOS (XCFramework)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the XCFramework
+        run: sh crates/tpt-ruc-ffi-ios/build-ios.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TptRucFfi-xcframework
+          path: target/ios/TptRucFfi.xcframework

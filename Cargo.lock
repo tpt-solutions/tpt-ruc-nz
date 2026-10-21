@@ -1685,6 +1685,7 @@ name = "tpt-ruc-ffi-ios"
 version = "0.1.0"
 dependencies = [
  "swift-bridge",
+ "swift-bridge-build",
  "tpt-ruc-ffi-common",
 ]
 

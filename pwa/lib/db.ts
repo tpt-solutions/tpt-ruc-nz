@@ -15,6 +15,20 @@ export interface Vehicle {
     electric: boolean;
     /** Odometer reading entered by hand, in kilometres. Optional. */
     odometerKm?: number;
+    /**
+     * A purchased distance licence, entered by hand. Optional. Only the distance is
+     * stored: the expiry rule is in the core, and the remaining distance needs the
+     * odometer above.
+     */
+    distanceLicence?: DistanceLicenceRecord;
+}
+
+/** A distance licence as the owner entered it. */
+export interface DistanceLicenceRecord {
+    /** Odometer reading when the licence was bought, in whole kilometres. */
+    startOdometerKm: number;
+    /** Distance the licence covers, in whole kilometres. */
+    licensedKm: number;
 }
 
 /** Where a trip came from: typed in by hand, or recorded by the device. */

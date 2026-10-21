@@ -11,20 +11,21 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Mobile: **swift-bridge (iOS) + jni crate (Android)**, replacing UniFFI
 - [x] iOS Safari / Firefox lack Web Bluetooth: accepted limitation, documented. iOS BLE comes via the native app
 - [x] RUC scope: **light + heavy vehicles, full NZTA types**. Rates are a versioned data table, not hardcoded
-- [x] Backend: SQLite **and** PostgreSQL, fleet management, CSV/PDF reports, eRUC export, all in Phase 4
+- [x] Backend: SQLite for v1 (PostgreSQL **deferred**, decided 2026-10-22), fleet management, CSV/PDF reports, eRUC export, all in Phase 4
 - [x] Auth: single-owner API-key mode (default for self-host) **plus** org/user/role mode for fleets. Per-device ed25519 keys
 - [x] Sync security: TLS + ed25519 signed payloads. Summaries only by default; raw GPS sync is opt-in
 - [x] eRUC export: generic documented JSON/CSV format plus an adapter trait now. Real provider adapters wait for provider API docs (**you supply**)
 - [x] PWA: Next.js **static export** + service worker (no Node server). Backend can optionally serve it
 - [x] GitHub org **TPT Solutions**, GitHub Actions CI, images on ghcr.io
+- [x] **No hosting.** The project runs no production service and holds no user or NZTA data. The PWA is a static export that operators host themselves, anywhere they like, or serve from the backend (`TPT_RUC_PWA_DIR`). It must work from any origin the operator chooses
 - [x] Extras in scope: hardware track (enclosure, BOM, power, LiPo shutdown) and NZTA Section 43 approval prep
 
 ## Open items to resolve (need your input)
 
-- [ ] Confirm current NZTA RUC rates and vehicle types. Rates now transcribed from the NZTA page (retrieved 2026-10-21). EV liability start date is 1 April 2024 (modelled). Additional overweight licences are transcribed (two assumptions to confirm with NZTA). Earlier rate tables are out of scope. See `docs/nzta/rates-research.md`
-- [ ] Provide eRUC provider API docs and names when available (Phase 5)
-- [ ] Confirm exact GitHub org slug and repo name (replaces `your-username` in the compose example)
-- [ ] Decide the production domain for the PWA/API
+- [x] Confirm current NZTA RUC rates and vehicle types (owner confirmed NZTA on 2026-10-22, including the two overweight assumptions). Rates now transcribed from the NZTA page (retrieved 2026-10-21). EV liability start date is 1 April 2024 (modelled). Additional overweight licences are transcribed (two assumptions to confirm with NZTA). Earlier rate tables are out of scope. See `docs/nzta/rates-research.md`
+- [x] eRUC provider API docs: **keep as placeholder** (decided 2026-10-22). Build only the generic exporter and adapter trait, with generic, best-effort behaviour. No provider adapter until docs are supplied
+- [x] GitHub org slug and repo name confirmed as `tpt-solutions/tpt-ruc-nz` (decided 2026-10-22)
+- [x] Production domain: **none**. The project does not host, so there is no project domain. Operators choose their own, and the docs use `ruc.example.com` as a placeholder
 
 ---
 
@@ -123,13 +124,13 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Vehicle profiles (CRUD) (create, edit, list and delete, tested end to end)
 - [x] Manual odometer entry (optional per vehicle, whole km, shown in the vehicle list; tested end to end)
 - [x] Basic RUC calculator UI (distance in, liability out) (home page; runs the wasm liability function, with an end-to-end test for a known charge)
-- [ ] Dashboard: current liability, distance until licence expiry (`pwa/components/Dashboard.tsx` shows this month's liability per vehicle, and the expiry date of a heavy licence bought before the newest rate change, with the days left. The date comes from the core rule, exported through the wasm `heavyLicenceExpiresOn`. Distance until expiry is NOT shown: the odometer-based model in the core needs the purchased licence distance, which the app does not store yet)
+- [x] Dashboard: current liability, distance until licence expiry (`pwa/components/Dashboard.tsx` shows this month's liability per vehicle, and the expiry date of a heavy licence bought before the newest rate change, with the days left. The date comes from the core rule, exported through the wasm `heavyLicenceExpiresOn`. Distance until expiry is shown when the vehicle has a distance licence (purchase odometer and licensed km, entered on the vehicle form) and an odometer reading. It uses the core model through the wasm `licenceRemainingKm`, and the note says it is an estimate from the entered odometer and is not checked against NZTA. Covered by end-to-end tests, not yet run on a real device)
 - [x] Trip history list and detail views (a manually entered trip list, with delete, and a trip detail view with the estimated charge on the trip's date, are done and tested. Device-recorded trips appear in the same list, with their origin and upload state)
 - [x] CSV export (trips as `vehicle,date,distance_km`, with formula-injection protection and an end-to-end download test)
 - [x] Persistent **Section 43 disclaimer** in the UI (first-run acknowledgement gates the app; the footer is on every page)
 - [x] Settings: units, rate-table version, privacy/sync toggles (off by default) (kilometres only, which the RUC model requires. The rate-table version is read from a live liability call. Upload is off by default, and backend settings persist)
 - [x] Accessibility pass (keyboard, contrast, screen reader labels) (contrast is checked for 12 text and background pairs, all at or above 4.5:1, with one close pair at about 4.55:1. An end-to-end audit found no unlabelled controls and tests Tab order. axe-core is only a transitive dependency, so it was not used)
-- [ ] Deploy the static site via GitHub Pages or Cloudflare Pages from CI
+- [x] ~~Deploy the static site via GitHub Pages or Cloudflare Pages from CI~~ Dropped (decided 2026-10-22): the project does not host the PWA. Operators host their own copy
 - [ ] Phase 2 exit: tag `v0.2.0`, usable offline as a manual RUC tracker
 
 ## Phase 3 – The Hardware MVP (Weeks 6-8)
@@ -151,10 +152,10 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Custom BLE GATT service and UUID design (version 1 layout in `docs/ble-design.md`: live fix, segment transfer, control and device info characteristics. Not implemented yet)
 - [x] MessagePack payload encoding of timestamp/lat/lon/speed/fix quality (version 1 array, pinned by golden bytes; `tpt-ruc-firmware::payload`)
 - [ ] Chunking and MTU negotiation (MTU target decided 2026-10-22: request 247 after connection; the firmware chunk encoder and reassembler are implemented in `transfer.rs` and checked against the PWA reassembler's framing; MTU negotiation and on-device timing are not measured)
-- [ ] Pairing/bonding approach and device identity (approach decided 2026-10-22, per `docs/pairing.md`: two layers, with an enrolment secret on a label or QR code. Not built; per-device ed25519 keypair stored on device) (`identity.rs` signs and verifies with Ed25519, checked against the RFC 8032 test vector. `SeedSource` is the seed abstraction, with a host test implementation. The on-chip RNG and seed storage are still to do, and the pairing approach is a recommendation awaiting the owner's decision in `docs/pairing.md`)
+- [ ] Pairing/bonding approach and device identity (approach decided 2026-10-22 and confirmed by the owner, following the recommendation in `docs/pairing.md`: BLE bonding with LE Secure Connections, plus an enrolment secret on a label or QR code, with the lost-phone default. Not built; per-device ed25519 keypair stored on device) (`identity.rs` signs and verifies with Ed25519, checked against the RFC 8032 test vector. `SeedSource` is the seed abstraction, with a host test implementation. The on-chip RNG and seed storage are still to do, and the pairing approach is a recommendation awaiting the owner's decision in `docs/pairing.md`)
 - [x] OTA update plan (decided: deferred past v1, with the requirements for adopting it later in `docs/ota-plan.md`)
 - [ ] Low-power modes and watchdog
-- [ ] Firmware config (GNSS rate, filters) via BLE (`gatt::handle_write` parses, validates and applies writes to the control characteristic, host-tested. The recorder takes new filter thresholds through `apply_config`. Still open: the UART command that sets the receiver's output rate, and the BLE stack that calls `handle_write`)
+- [ ] Firmware config (GNSS rate, filters) via BLE (`gatt::handle_write` parses, validates and applies writes to the control characteristic, host-tested. The recorder takes new filter thresholds through `apply_config`. `ubx::cfg_rate_frame` builds the UBX-CFG-RATE frame for 1 Hz or 5 Hz, host-tested against known bytes. Still open: writing that frame to UART1 from `firmware/esp`, which is not built or run, and the BLE stack that calls `handle_write`)
 - [x] Host-side tests for the firmware logic (21 tests: GNSS framing, fix merging, recorder, segment queue, payload)
 
 ### PWA ↔ ESP32
@@ -171,14 +172,15 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 
 ### Backend core
 - [x] Create the `tpt-ruc-backend` crate (hyper and tokio, with our own routing, CORS and request logging; `cargo deny` passes. Axum and sqlx were dropped because they pulled in `sync_wrapper` (Apache-2.0 only) and `ryu` (BSL-1.0, not allowed))
-- [ ] DB layer supporting **SQLite and PostgreSQL** (sqlx or similar; licence check) (SQLite via rusqlite, bundled, is done. PostgreSQL is BLOCKED for now: the handlers are synchronous, about 34 call sites would need an async rewrite, and there is no PostgreSQL server here to test against. tokio-postgres passes the licence check) Still open after this round. There is no PostgreSQL server or Docker in this environment to test against, so the async rewrite is not started.
-- [ ] Migrations for both databases; CI tests against both (SQLite migration `0001_init.sql` runs at startup and is tested; the PostgreSQL migrations and CI job are still to do)
+- [x] DB layer: SQLite via rusqlite (bundled) is done. **PostgreSQL is deferred** until a deployment needs it (decided 2026-10-22). The handlers are synchronous, so it would need an async rewrite of about 34 call sites, which is not started. tokio-postgres passes the licence check
+- [x] Migrations for SQLite (`0001_init.sql` runs at startup and is tested). PostgreSQL migrations and CI job are **deferred** with PostgreSQL
 - [x] Config (env + file), structured logging (`RUST_LOG`), health/readiness endpoints (env config; an optional TOML file named by `TPT_RUC_CONFIG`, with environment variables overriding it; `RUST_LOG` logging; `/healthz` and `/readyz`)
 - [x] OpenAPI spec (verify generator licence) and versioned API (`/v1`) (`docs/api/openapi.yaml` covers all 23 operations, hand-written with no generator. It is checked with Python's yaml parser, since no YAML crate is in the tree)
 - [x] Rate limiting, request size limits, CORS for the PWA (body size limit and CORS allow-list are done. Rate limiting is per client IP: 120 requests a minute, and a client is blocked for 15 minutes after 10 failed API key checks in that window. It sees the TCP peer address, so behind a reverse proxy all clients share the proxy's limit. Trusting `X-Forwarded-For` is not built)
 
 ### Auth & multi-tenancy
 - [x] Single-owner mode: one API key, vehicles under one owner (`TPT_RUC_API_KEY`, at least 32 characters, sent as a Bearer token and compared in constant time; the server refuses to start without it. Vehicles are not yet modelled server-side, so trips carry the vehicle fields directly)
+- [x] Tenancy decided (2026-10-22): one organisation per server, as built. Multi-organisation tenancy is out of scope unless a second customer needs it
 - [ ] Org mode: users, orgs, roles (admin/manager/driver) (Tenancy default chosen 2026-10-22: one organisation per server, which is the state built. There is no documented recommendation on this, so it is a default, not an endorsed design. Multi-organisation tenancy is deferred. users, roles, and vehicles with driver assignment are done. Orgs are not built: there is one organisation. Admins create users with `POST /v1/users`, and each user gets a token shown once. Drivers see and delete only their own trips and cannot run reports. Managers see every trip and run reports. Admins also manage users, and deleting a user deletes their trips. Orgs are not built: there is one organisation) Still open after this round. Tenancy is a design decision for the owner: whether the server is one organisation or hosts several, and whether the owner key sees every organisation.
 - [x] Password hashing (argon2) and session/token strategy (Argon2id passwords in `passwords.rs`. Browser sign-in at `POST /v1/sessions` issues a 12-hour session token, ended by `DELETE /v1/sessions` or by a password change (`PUT /v1/users/{id}/password`). User tokens are rotatable with `POST /v1/users/{id}/token`. Only SHA-256 hashes of tokens are stored. Sessions cannot be rotated yet, only signed out or expired)
 - [x] Per-device ed25519 key registration and revocation (`POST /v1/devices` registers a key owned by a user, using ed25519-dalek, BSD-3-Clause. Revoked devices are refused)
@@ -213,8 +215,8 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 
 ### Deployment
 - [x] Multi-stage Dockerfile (small image, non-root, healthcheck) (`Dockerfile`: a Rust build stage and a Debian slim runtime that runs as user 10001. The health check is `tpt-ruc-backend healthcheck`, so no `curl` is needed. Not yet built in a Docker environment, only its build command has been checked outside Docker)
-- [ ] Multi-arch images (amd64 + arm64 for Raspberry Pi/NAS), published to ghcr.io from CI (`.github/workflows/docker-publish.yml` is written, for amd64 and arm64, and pushes on master and tags. It has not run on GitHub yet)
-- [ ] `docker-compose.yml` (SQLite default; Postgres profile) with the `./data` volume (`docker-compose.yml` runs with SQLite on a named volume, `tpt-ruc-data`, because a bind-mounted host folder is not writable by the container's user. The Postgres profile is not built)
+- [ ] Multi-arch images (amd64 + arm64 for Raspberry Pi/NAS). `.github/workflows/docker-publish.yml` is written for amd64 and arm64, and it is now manual only (decided 2026-10-22: optional, not automatic). It has not run on GitHub yet
+- [ ] `docker-compose.yml` (SQLite default; Postgres profile deferred with PostgreSQL) with the `./data` volume (`docker-compose.yml` runs with SQLite on a named volume, `tpt-ruc-data`, because a bind-mounted host folder is not writable by the container's user. The Postgres profile is not built)
 - [x] Optional bundled PWA static files served by the backend (`TPT_RUC_PWA_DIR`, off by default. `static_files.rs` refuses encoded, dot and `..` paths and any file that resolves outside the folder. Static GETs are exempt from the API rate limit. Covered by API tests, not run in a browser)
 - [x] Backups guidance, TLS/reverse-proxy guide (Caddy/Traefik example) (`docs/guides/reverse-proxy-and-backups.md`. The Caddy example is the recommended one. The Traefik example is an untested sketch. The backup commands need the volume's full name, which Docker prefixes with the project folder)
 - [ ] Integration tests: PWA ↔ backend end-to-end
@@ -232,7 +234,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [ ] PCB layout, DRC/ERC clean
 - [ ] Gerbers, BOM and pick-and-place output generated in CI (BLOCKED on the schematic and PCB layout)
 - [ ] Prototype order, assembly and bring-up (BLOCKED on the PCB design)
-- [ ] Firmware board-support for the custom PCB (S3 and RISC-V variant decision)
+- [x] Firmware board-support for the custom PCB: ESP32-S3 (decided 2026-10-22). Board-support code itself is not written
 - [ ] Thermal/vibration/automotive voltage testing
 - [ ] Rev B fixes
 - [ ] Enclosure design (3D STLs), mounting and cable strain relief (BLOCKED: no CAD tool here)
@@ -242,10 +244,10 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ### Mobile bindings (no MPL tooling)
 - [x] Create `tpt-ruc-ffi-ios` using **swift-bridge** (verify licence) (`crates/tpt-ruc-ffi-ios`; swift-bridge 0.1.59 is usable under its MIT option. Returns NZD as `Double` because swift-bridge cannot return `u64`. Host-compiled; iOS target not built here)
 - [x] Create `tpt-ruc-ffi-android` using the **jni** crate (`crates/tpt-ruc-ffi-android`, jni 0.22.4, MIT OR Apache-2.0. JNI symbols present in the host build; Android target not built here)
-- [ ] Build scripts for xcframework and Android `.so` (cargo-ndk or similar; licence check) (scripts are written as text and have not been run. The Swift glue-generation step is missing, and the cargo-ndk licence still needs checking)
+- [x] Build scripts for xcframework and Android `.so` (cargo-ndk). `build.rs` in `tpt-ruc-ffi-ios` now generates the swift-bridge glue into `target/ios/generated` (host-checked). `build-ios.sh` packages it. `.github/workflows/mobile.yml` runs both builds on CI, manual only. Not yet run on a macOS or Android runner. The cargo-ndk licence still needs checking before the install step is kept
 - [x] Minimal sample apps (Swift, Kotlin) calling the core (under `samples/`, marked untested)
-- [ ] Native BLE on iOS/Android feeding the core (fills the iOS Web Bluetooth gap) (BLOCKED: needs devices. The plan is in `docs/mobile-ble-plan.md`)
-- [ ] CI builds for the iOS and Android targets (BLOCKED: needs macOS and Android SDK runners, not added yet)
+- [ ] Native BLE on iOS/Android feeding the core. **Not for v1** (decided 2026-10-22): accept the iOS Web Bluetooth gap, which is documented. Plan kept in `docs/mobile-ble-plan.md` (BLOCKED: needs devices)
+- [ ] CI builds for the iOS and Android targets: `.github/workflows/mobile.yml` is added (manual only, macOS and Ubuntu runners). Not yet run on GitHub
 
 ### eRUC providers
 - [ ] Review the provider API docs you supply
@@ -256,9 +258,9 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [ ] Read Section 43 and the NZTA distance recorder approval requirements; record them in `docs/nzta/` (criteria the docs cite are marked "needs NZTA source". They must be read from the NZTA primary source)
 - [x] Gap analysis: current design vs approval criteria (accuracy, tamper evidence, security, data integrity) (`docs/nzta/section43-gap-analysis.md`; criteria not verified against primary sources)
 - [x] Define accuracy test protocol and test route evidence (`docs/nzta/accuracy-test-protocol.md`, a protocol only)
-- [ ] Collect test results and calibration evidence
-- [ ] Draft the application pack and technical documentation
-- [ ] Decide whether to apply (outside the open-source stance), and who owns the application (options memo in `docs/nzta/`, no recommendation to file, so this stays with the owner; decision is yours)
+- [ ] Collect test results and calibration evidence (out of scope for this project: a person applying for approval would need to do this)
+- [ ] Draft the application pack and technical documentation (out of scope: no application is made by this project)
+- [x] Decide whether to apply: **no**. This project does not apply for Section 43 approval and does not own an application (decided 2026-10-22). Any operator who wants approval is responsible for their own application
 - [ ] Keep disclaimers in README/UI until approval is granted
 
 ## Phase 6 – Release & Ongoing
@@ -268,5 +270,5 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] NZTA compliance doc and rate-table update procedure (how to ship new rates) (`docs/nzta/rate-update-procedure.md`)
 - [x] Privacy statement describing the local-first/zero-knowledge model (`docs/privacy.md`, checked against the code)
 - [ ] Final licence audit (`cargo deny`, JS audit, third-party notices) and `v1.0.0` tag
-- [ ] Release automation: binaries, Docker images, firmware `.bin`, PWA bundle (not started: this is publishing, which is excluded from this round)
+- [ ] Release automation: binaries, Docker images, firmware `.bin`, PWA bundle (not started). **Timing decided 2026-10-22:** no release until the first real-device drive test is done
 - [ ] Maintenance plan: dependency updates, NZTA rate-change monitoring, issue triage

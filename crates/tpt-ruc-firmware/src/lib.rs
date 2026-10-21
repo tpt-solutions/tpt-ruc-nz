@@ -21,6 +21,7 @@ pub mod queue;
 pub mod recorder;
 pub mod session;
 pub mod transfer;
+pub mod ubx;
 
 pub use log::{LogError, LogStorage, SegmentLog};
 pub use queue::SegmentQueue;

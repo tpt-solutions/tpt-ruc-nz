@@ -1,14 +1,13 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 # Copyright (c) 2026 TPT Solutions
 
-# Builds the backend image for amd64 and arm64 (Raspberry Pi, NAS) and pushes it
-# to GitHub Container Registry. Pull requests only build, they never push.
+# Builds the backend image for amd64 and arm64 (Raspberry Pi, NAS) and, when run
+# by hand, pushes it to GitHub Container Registry. It does not run on push or tag,
+# so the project does not publish images by default. Operators can build locally
+# from the Dockerfile. Pull requests only build, they never push.
 name: Docker publish
 
 on:
-  push:
-    branches: [master]
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:

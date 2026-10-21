@@ -26,12 +26,12 @@ Built on a unified Rust core, the project aims for memory safety, performance, a
 | Mobile FFI | `swift-bridge` (iOS) and the `jni` crate (Android). UniFFI is replaced |
 | Web Bluetooth | iOS Safari and Firefox lack it. Accepted limitation: iOS BLE comes via the native app |
 | RUC scope | Light and heavy vehicles, full NZTA types. Rates are a versioned data table, not hardcoded |
-| Backend database | SQLite and PostgreSQL, both supported in CI |
+| Backend database | SQLite for v1. PostgreSQL is deferred until a deployment needs it |
 | Auth | Single-owner API-key mode (default for self-host) plus org/user/role mode for fleets. Per-device ed25519 keys |
 | Sync security | TLS plus ed25519-signed payloads. Summaries only by default; raw GPS sync is opt-in |
 | eRUC export | Generic documented JSON/CSV format plus an adapter trait. Real provider adapters wait for provider API docs |
 | PWA | Next.js static export plus service worker (no Node server). Backend can optionally serve it |
-| Hosting | GitHub org `TPT Solutions`, GitHub Actions CI, images on ghcr.io |
+| Hosting | GitHub org `tpt-solutions`, GitHub Actions CI. No hosted service: operators run their own. Container images are built on demand (manual workflow), not published by default |
 | Extras in scope | Hardware track (enclosure, BOM, power, LiPo shutdown) and NZTA Section 43 approval prep |
 
 ## 4. System Architecture
@@ -81,7 +81,7 @@ Compilation targets:
 
 The reference hardware implementation for the physical distance recorder.
 
-- **Hardware:** ESP32-S3 (low-power BLE/Wi-Fi) or ESP32-C3/C6, plus a high-accuracy GNSS module (u-blox NEO-M8N or Quectel L80).
+- **Hardware:** ESP32-S3 (low-power BLE/Wi-Fi) for the custom PCB and the bench build, plus a high-accuracy GNSS module (u-blox NEO-M8N or Quectel L80).
 - **Power:** designed for 12 V/24 V vehicle systems (OBD-II or hardwire), with a small LiPo backup for clean shutdowns.
 - **Responsibilities:**
   - Read UART data from the GNSS module and pass it to `tpt-ruc-core`.
@@ -94,7 +94,7 @@ The reference hardware implementation for the physical distance recorder.
 A lightweight, self-hostable API for data aggregation, fleet management, and reporting.
 
 - **Language:** Rust, Axum, tokio, tower.
-- **Database:** SQLite (simple self-hosting) or PostgreSQL (cloud and fleet deployments).
+- **Database:** SQLite (simple self-hosting). PostgreSQL is deferred until a deployment needs it.
 - **Responsibilities:**
   - Receive signed trip summaries (and, opt-in only, raw points) from the PWA.
   - Re-validate distance and liability using `tpt-ruc-core`.
@@ -162,6 +162,6 @@ Each phase ends with a tagged release and a working demo.
 2. **Phase 1, Core and maths (weeks 1-2):** Cargo workspace, `tpt-ruc-core` (NMEA, Haversine, RUC rate logic), unit and property tests.
 3. **Phase 2, PWA and WASM (weeks 3-5):** Next.js PWA scaffold, core compiled to WASM, manual odometer entry, basic RUC calculator UI.
 4. **Phase 3, Hardware MVP (weeks 6-8):** off-the-shelf ESP32 and GPS breakout boards (no custom PCB yet). Firmware reads GPS and broadcasts over BLE. PWA connects via Web Bluetooth.
-5. **Phase 4, Backend and sync (weeks 9-11):** `tpt-ruc-backend` (Axum, SQLite and PostgreSQL), PWA sync, Docker setup for self-hosting.
+5. **Phase 4, Backend and sync (weeks 9-11):** `tpt-ruc-backend` (hyper and tokio, SQLite; PostgreSQL deferred), PWA sync, Docker setup for self-hosting.
 6. **Phase 5, Hardware refinement and FFI (weeks 12+):** custom KiCad PCB for the ESP32 GPS node, iOS and Android bindings, eRUC provider export formats.
 7. **Phase 6, Release and ongoing:** user guides, licence audit, `v1.0.0`, maintenance.

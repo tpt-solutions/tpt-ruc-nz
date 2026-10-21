@@ -8,6 +8,7 @@
 //! micro-dollars, as in the core crate.
 
 use serde::Serialize;
+use tpt_ruc_core::licence::DistanceLicence;
 use tpt_ruc_core::ruc::{self, RateDate, Vehicle};
 use tpt_ruc_core::ruc_rates::{self, PurchaseMethod};
 use tpt_ruc_core::{billable_km, haversine_m as core_haversine_m, Coordinate, Fix, Tracker};
@@ -43,6 +44,20 @@ pub fn current_rate_effective() -> String {
 pub fn heavy_licence_expires_on_js(gross_kg: u32, year: u16, month: u8, day: u8) -> Option<String> {
     ruc::heavy_licence_expires_on(gross_kg, RateDate { year, month, day })
         .map(|date| format!("{:04}-{:02}-{:02}", date.year, date.month, date.day))
+}
+
+/// Kilometres left on a distance licence bought at `start_odometer_km` for `licensed_km`,
+/// at the odometer reading `odometer_km`. Zero once the licence distance is used up.
+///
+/// The core model is marked requires verification, so the PWA must say the figure is an estimate.
+#[wasm_bindgen(js_name = licenceRemainingKm)]
+pub fn licence_remaining_km(start_odometer_km: u32, licensed_km: u32, odometer_km: u32) -> u32 {
+    let licence = DistanceLicence {
+        start_odometer_km: u64::from(start_odometer_km),
+        licensed_km: u64::from(licensed_km),
+    };
+    // The remaining distance is at most `licensed_km`, which fits in u32.
+    licence.remaining_km(u64::from(odometer_km)) as u32
 }
 
 /// Standard RUC liability from the NZTA table in force on the given date.

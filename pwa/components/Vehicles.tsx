@@ -18,6 +18,8 @@ export function Vehicles() {
     const [grossKg, setGrossKg] = useState("2000");
     const [electric, setElectric] = useState(false);
     const [odometer, setOdometer] = useState("");
+    const [licenceStart, setLicenceStart] = useState("");
+    const [licenceKm, setLicenceKm] = useState("");
     const [error, setError] = useState<string | null>(null);
 
     function refresh() {
@@ -35,6 +37,8 @@ export function Vehicles() {
         setGrossKg("2000");
         setElectric(false);
         setOdometer("");
+        setLicenceStart("");
+        setLicenceKm("");
     }
 
     function edit(vehicle: Vehicle) {
@@ -44,6 +48,14 @@ export function Vehicles() {
         setGrossKg(String(vehicle.grossKg));
         setElectric(vehicle.electric);
         setOdometer(vehicle.odometerKm === undefined ? "" : String(vehicle.odometerKm));
+        setLicenceStart(
+            vehicle.distanceLicence === undefined
+                ? ""
+                : String(vehicle.distanceLicence.startOdometerKm),
+        );
+        setLicenceKm(
+            vehicle.distanceLicence === undefined ? "" : String(vehicle.distanceLicence.licensedKm),
+        );
         setError(null);
     }
 
@@ -64,6 +76,24 @@ export function Vehicles() {
             setError("Enter the odometer as a whole number of kilometres, or leave it blank.");
             return;
         }
+        // The distance licence is optional. Its two figures must be given together, as whole km.
+        const licenceGiven = licenceStart.trim() !== "" || licenceKm.trim() !== "";
+        const startOdometerKm = Number(licenceStart);
+        const licensedKm = Number(licenceKm);
+        const licenceValid =
+            Number.isInteger(startOdometerKm) &&
+            startOdometerKm >= 0 &&
+            Number.isInteger(licensedKm) &&
+            licensedKm > 0;
+        if (
+            licenceGiven &&
+            (!licenceValid || licenceStart.trim() === "" || licenceKm.trim() === "")
+        ) {
+            setError(
+                "Enter the licence odometer as a whole number of km, and the licence distance as a whole number above zero. Or leave both blank.",
+            );
+            return;
+        }
         const vehicle: Vehicle = {
             id: editingId ?? newId(),
             name: name.trim(),
@@ -71,6 +101,7 @@ export function Vehicles() {
             grossKg: kg,
             electric,
             odometerKm,
+            distanceLicence: licenceGiven ? { startOdometerKm, licensedKm } : undefined,
         };
         putVehicle(vehicle)
             .then(() => {
@@ -172,6 +203,24 @@ export function Vehicles() {
                         inputMode="numeric"
                         value={odometer}
                         onChange={(e) => setOdometer(e.target.value)}
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                    Odometer when licence bought (km), optional
+                    <input
+                        className="rounded border border-neutral-400 bg-white px-2 py-2 text-neutral-900"
+                        inputMode="numeric"
+                        value={licenceStart}
+                        onChange={(e) => setLicenceStart(e.target.value)}
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                    Distance licence covers (km), optional
+                    <input
+                        className="rounded border border-neutral-400 bg-white px-2 py-2 text-neutral-900"
+                        inputMode="numeric"
+                        value={licenceKm}
+                        onChange={(e) => setLicenceKm(e.target.value)}
                     />
                 </label>
                 <label className="flex items-center gap-2 text-sm">

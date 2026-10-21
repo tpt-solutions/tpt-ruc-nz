@@ -4,9 +4,10 @@
 import init, {
     currentRateEffective,
     heavyLicenceExpiresOn,
+    licenceRemainingKm as wasmLicenceRemainingKm,
     liability as wasmLiability,
 } from "tpt-ruc-wasm";
-import type { Trip, Vehicle } from "@/lib/db";
+import type { DistanceLicenceRecord, Trip, Vehicle } from "@/lib/db";
 
 /** The liability for one trip, in micro-dollars, as the wasm module returns it. */
 export interface TripEstimate {
@@ -34,6 +35,19 @@ export async function heavyLicenceExpiry(grossKg: number): Promise<string | unde
     await loadRuc();
     const [year, month, day] = currentRateEffective().split("-").map(Number);
     return heavyLicenceExpiresOn(grossKg, year, month, day) ?? undefined;
+}
+
+/**
+ * Kilometres left on a distance licence at the given odometer reading. Zero once the
+ * licence distance is used up. This is an estimate: the core model is not verified
+ * against NZTA guidance.
+ */
+export async function licenceRemainingKm(
+    licence: DistanceLicenceRecord,
+    odometerKm: number,
+): Promise<number> {
+    await loadRuc();
+    return wasmLicenceRemainingKm(licence.startOdometerKm, licence.licensedKm, odometerKm);
 }
 
 /**
