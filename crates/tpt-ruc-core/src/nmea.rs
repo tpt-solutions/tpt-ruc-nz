@@ -61,6 +61,7 @@ impl fmt::Display for ParseError {
 /// Talker identifier from the start of the address field, for example `GN`
 /// for multi-constellation or `GP` for GPS only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Talker(pub [u8; 2]);
 
 impl Talker {
@@ -121,6 +122,7 @@ impl FixQuality {
 
 /// Dimension of the fix, from the GSA mode indicator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FixType {
     /// No fix.
     NoFix,
@@ -132,6 +134,7 @@ pub enum FixType {
 
 /// UTC time of day from an NMEA `hhmmss[.sss]` field.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UtcTime {
     /// Hour, 0..=23.
     pub hour: u8,
@@ -143,6 +146,7 @@ pub struct UtcTime {
 
 /// Calendar date from an NMEA `ddmmyy` field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Date {
     /// Day of month, 1..=31.
     pub day: u8,
@@ -154,6 +158,7 @@ pub struct Date {
 
 /// GGA: time, position, fix quality and accuracy.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Gga {
     /// Talker that produced the sentence.
     pub talker: Talker,
@@ -173,6 +178,7 @@ pub struct Gga {
 
 /// RMC: time, position, speed, course and date.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Rmc {
     /// Talker that produced the sentence.
     pub talker: Talker,
@@ -192,6 +198,7 @@ pub struct Rmc {
 
 /// VTG: course and speed over ground.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Vtg {
     /// Talker that produced the sentence.
     pub talker: Talker,
@@ -205,6 +212,7 @@ pub struct Vtg {
 
 /// GSA: fix dimension and dilution of precision.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Gsa {
     /// Talker that produced the sentence.
     pub talker: Talker,
@@ -220,6 +228,7 @@ pub struct Gsa {
 
 /// A parsed NMEA sentence.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Sentence {
     /// GGA fix data.
     Gga(Gga),

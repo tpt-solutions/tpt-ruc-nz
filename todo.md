@@ -101,10 +101,10 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 
 ### WASM
 - [x] Create the `tpt-ruc-wasm` bindings crate (wasm-bindgen 0.2; checks on host and wasm32)
-- [ ] Expose parse, distance, RUC calc and (de)serialise functions (distance, RUC liability, admin fees, billable km and a `TripTracker` taking JSON fixes are exposed; NMEA parsing is not yet)
-- [ ] Build script producing an npm package consumed by `pwa/` (needs wasm-pack, not yet installed)
-- [ ] Size/perf optimisation (`wasm-opt`, release profile)
-- [ ] Rust-side wasm tests (`wasm-bindgen-test`) (not yet; the bindings are only checked for the wasm32 target)
+- [x] Expose parse, distance, RUC calc and (de)serialise functions (`parseNmea`, `haversineM`, `liability`, `adminFeeInclGstMicros`, `billableKm`, and `TripTracker` with JSON fixes)
+- [x] Build script producing an npm package consumed by `pwa/` (`scripts/build-wasm.sh` writes `pwa/wasm-pkg`, which is git-ignored)
+- [ ] Size/perf optimisation (release profile uses wasm-opt via wasm-pack; not yet measured or tuned)
+- [x] Rust-side wasm tests (`wasm-bindgen-test`, run with `wasm-pack test --node crates/tpt-ruc-wasm`)
 
 ### PWA scaffold
 - [ ] Next.js (TypeScript) with `output: export`, Tailwind CSS

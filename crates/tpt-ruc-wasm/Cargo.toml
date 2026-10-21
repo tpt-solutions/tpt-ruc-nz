@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+repository = "https://github.com/tpt-solutions/tpt-ruc-nz"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -18,3 +19,6 @@ serde_json = "1"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

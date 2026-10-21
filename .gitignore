@@ -8,6 +8,7 @@
 # WASM and PWA build output
 /pwa/node_modules/
 /pwa/out/
+/pwa/wasm-pkg/
 /pwa/.next/
 /crates/tpt-ruc-wasm/pkg/
 

@@ -79,6 +79,18 @@ pub fn admin_fee_incl_gst_micros(agent: bool) -> u64 {
     ruc_rates::admin_fee_incl_gst_micros(method)
 }
 
+/// Parses one NMEA 0183 sentence, such as `$GNGGA,...*47`.
+///
+/// Returns the sentence as a serde object keyed by its variant: `{ Gga: {...} }`,
+/// `{ Rmc: {...} }`, `{ Vtg: {...} }`, `{ Gsa: {...} }`, or `"Unsupported"` for a
+/// valid sentence this parser does not decode. Fails if the checksum or fields
+/// are invalid.
+#[wasm_bindgen(js_name = parseNmea)]
+pub fn parse_nmea(line: &str) -> Result<JsValue, JsError> {
+    let sentence = tpt_ruc_core::parse_sentence(line).map_err(|e| JsError::new(&e.to_string()))?;
+    to_js(&sentence)
+}
+
 /// A trip tracker that filters GPS fixes and accumulates distance.
 #[wasm_bindgen]
 pub struct TripTracker {
