@@ -19,13 +19,36 @@ describe("mergeSettings", () => {
             syncEnabled: true,
             backendUrl: "https://x.example",
             apiKey: "k",
+            syncSchedule: "open",
+            lastSyncAttemptMs: 0,
         });
     });
 
     it("ignores values of the wrong type instead of trusting them", () => {
-        expect(mergeSettings({ syncEnabled: "yes", backendUrl: 5, apiKey: null })).toEqual(
-            DEFAULT_SETTINGS,
-        );
+        expect(
+            mergeSettings({
+                syncEnabled: "yes",
+                backendUrl: 5,
+                apiKey: null,
+                syncSchedule: "weekly",
+                lastSyncAttemptMs: "soon",
+            }),
+        ).toEqual(DEFAULT_SETTINGS);
+    });
+
+    it("keeps a valid schedule and last attempt, and drops bad numbers", () => {
+        const kept = mergeSettings({
+            syncSchedule: "hourly",
+            lastSyncAttemptMs: 1_700_000_000_000,
+        });
+        expect(kept.syncSchedule).toBe("hourly");
+        expect(kept.lastSyncAttemptMs).toBe(1_700_000_000_000);
+        expect(mergeSettings({ lastSyncAttemptMs: -5 }).lastSyncAttemptMs).toBe(0);
+        expect(mergeSettings({ lastSyncAttemptMs: Infinity }).lastSyncAttemptMs).toBe(0);
+    });
+
+    it("defaults to syncing when the app opens", () => {
+        expect(DEFAULT_SETTINGS.syncSchedule).toBe("open");
     });
 
     it("always reports kilometres", () => {

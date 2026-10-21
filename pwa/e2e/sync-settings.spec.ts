@@ -27,6 +27,18 @@ test("upload is off by default, and backend settings survive a reload", async ({
     ).not.toBeChecked();
 });
 
+test("the upload schedule defaults to on open and survives a reload", async ({ page }) => {
+    await passNotice(page);
+    const schedule = page.getByLabel("Upload schedule");
+    await expect(schedule).toHaveValue("open");
+
+    await schedule.selectOption("hourly");
+    await expect(page.getByText("Upload schedule saved.")).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByLabel("Upload schedule")).toHaveValue("hourly");
+});
+
 test("a backend address with a path is refused before saving", async ({ page }) => {
     await passNotice(page);
     await page.getByLabel("Backend address").fill("http://localhost:8080/api");

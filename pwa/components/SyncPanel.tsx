@@ -10,6 +10,14 @@ import {
 import { ensureDeviceKey, ed25519Supported, loadDeviceKey, signText } from "@/lib/device-key";
 import { indexedDbSyncStore, listRefusedTrips, requeueTrip, isPending } from "@/lib/sync-store";
 import { syncPending, type SyncReport } from "@/lib/sync";
+import {
+    DEFAULT_SYNC_SCHEDULE,
+    SCHEDULE_LABELS,
+    SYNC_SCHEDULES,
+    isSyncSchedule,
+    shouldSyncOn,
+    type SyncTrigger,
+} from "@/lib/sync-schedule";
 import type { Trip } from "@/lib/db";
 
 function errorText(e: unknown): string {
@@ -17,6 +25,9 @@ function errorText(e: unknown): string {
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** How often the open page checks whether a scheduled sync is due. */
+const TICK_MS = 60_000;
 
 /** Settings for the backend and the sync screen: what is waiting, what was refused, and a Sync now button. */
 export function SyncPanel() {
@@ -55,13 +66,21 @@ export function SyncPanel() {
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only state: navigator and window do not exist during the static prerender
         refresh().catch((e: unknown) => setError(errorText(e)));
-        // A sync also runs when the browser comes back online, if sync is on.
-        const onOnline = () => {
-            void runSync();
+        // Automatic syncs follow the saved schedule, and only run while upload is on.
+        // Each trigger reads the latest settings from storage, so nothing here goes stale.
+        const onOnline = () => void autoSync("online");
+        const onVisible = () => {
+            if (document.visibilityState === "visible") void autoSync("visible");
         };
         window.addEventListener("online", onOnline);
-        return () => window.removeEventListener("online", onOnline);
-        // runSync reads the latest settings from storage, so the listener never goes stale.
+        document.addEventListener("visibilitychange", onVisible);
+        const timer = setInterval(() => void autoSync("tick"), TICK_MS);
+        void autoSync("open");
+        return () => {
+            window.removeEventListener("online", onOnline);
+            document.removeEventListener("visibilitychange", onVisible);
+            clearInterval(timer);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -105,12 +124,42 @@ export function SyncPanel() {
         }
     }
 
-    async function runSync() {
+    /** Starts a sync if the saved schedule asks for one on this trigger. */
+    async function autoSync(trigger: SyncTrigger) {
+        try {
+            const current = await readAppSettings();
+            if (!current.syncEnabled) return;
+            if (
+                !shouldSyncOn(current.syncSchedule, trigger, current.lastSyncAttemptMs, Date.now())
+            ) {
+                return;
+            }
+            await runSync(true);
+        } catch (e) {
+            setError(errorText(e));
+        }
+    }
+
+    /** `auto` syncs stay quiet when the backend is not set up yet, instead of nagging on every open. */
+    async function setSchedule(value: string) {
+        if (!isSyncSchedule(value)) return;
+        setError(null);
+        setMessage(null);
+        setSettings((current) => (current ? { ...current, syncSchedule: value } : current));
+        try {
+            setSettings(await writeAppSettings({ syncSchedule: value }));
+            setMessage("Upload schedule saved.");
+        } catch (e) {
+            setError(errorText(e));
+        }
+    }
+
+    async function runSync(auto = false) {
         if (busyRef.current) return;
         const current = await readAppSettings();
         if (!current.syncEnabled) return;
         if (!current.backendUrl || !current.apiKey) {
-            setError("Enter the backend address and API key before uploading.");
+            if (!auto) setError("Enter the backend address and API key before uploading.");
             return;
         }
         busyRef.current = true;
@@ -118,6 +167,7 @@ export function SyncPanel() {
         setError(null);
         setMessage(null);
         try {
+            await writeAppSettings({ lastSyncAttemptMs: Date.now() });
             const key = await loadDeviceKey();
             const subtle = globalThis.crypto?.subtle;
             const result = await syncPending(
@@ -225,6 +275,26 @@ export function SyncPanel() {
                 </p>
             </div>
 
+            <div className="flex flex-col gap-1">
+                <label htmlFor="sync-schedule">Upload schedule</label>
+                <select
+                    id="sync-schedule"
+                    className="rounded border border-neutral-400 bg-white px-2 py-2 text-neutral-900"
+                    value={settings?.syncSchedule ?? DEFAULT_SYNC_SCHEDULE}
+                    onChange={(e) => void setSchedule(e.target.value)}
+                >
+                    {SYNC_SCHEDULES.map((schedule) => (
+                        <option key={schedule} value={schedule}>
+                            {SCHEDULE_LABELS[schedule]}
+                        </option>
+                    ))}
+                </select>
+                <p className="text-sm text-neutral-600">
+                    Automatic uploads run only while upload is on, and only while this app is open.
+                    The Sync now button always works.
+                </p>
+            </div>
+
             <div className="space-y-2" aria-live="polite">
                 <p>
                     Waiting to upload: <strong>{pendingCount}</strong>
@@ -243,7 +313,7 @@ export function SyncPanel() {
                     type="button"
                     className="rounded border border-neutral-400 px-4 py-2 disabled:opacity-40"
                     disabled={busy || !ready || !settings?.syncEnabled}
-                    onClick={() => void runSync()}
+                    onClick={() => void runSync(false)}
                 >
                     {busy ? "Uploading…" : "Sync now"}
                 </button>

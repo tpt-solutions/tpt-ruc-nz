@@ -2,6 +2,7 @@
 // Copyright (c) 2026 TPT Solutions
 
 import { getSetting, setSetting } from "./db";
+import { DEFAULT_SYNC_SCHEDULE, isSyncSchedule, type SyncSchedule } from "./sync-schedule";
 
 /** Settings key the whole settings object is stored under in the settings store. */
 export const APP_SETTINGS_KEY = "app";
@@ -20,6 +21,10 @@ export interface AppSettings {
     backendUrl: string;
     /** The owner's or a user's API key, sent as a Bearer token. Empty when unset. */
     apiKey: string;
+    /** When the app syncs by itself. Only used while `syncEnabled` is true. */
+    syncSchedule: SyncSchedule;
+    /** Epoch ms of the last sync attempt, or 0. Lets interval schedules survive a reload. */
+    lastSyncAttemptMs: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -27,6 +32,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     syncEnabled: false,
     backendUrl: "",
     apiKey: "",
+    syncSchedule: DEFAULT_SYNC_SCHEDULE,
+    lastSyncAttemptMs: 0,
 };
 
 /**
@@ -43,6 +50,15 @@ export function mergeSettings(stored: unknown): AppSettings {
         syncEnabled: record.syncEnabled === true,
         backendUrl: typeof record.backendUrl === "string" ? record.backendUrl : "",
         apiKey: typeof record.apiKey === "string" ? record.apiKey : "",
+        syncSchedule: isSyncSchedule(record.syncSchedule)
+            ? record.syncSchedule
+            : DEFAULT_SYNC_SCHEDULE,
+        lastSyncAttemptMs:
+            typeof record.lastSyncAttemptMs === "number" &&
+            Number.isFinite(record.lastSyncAttemptMs) &&
+            record.lastSyncAttemptMs > 0
+                ? record.lastSyncAttemptMs
+                : 0,
     };
 }
 
