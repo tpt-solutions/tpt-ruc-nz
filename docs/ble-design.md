@@ -53,6 +53,10 @@ Written as a single byte command, followed by arguments.
 | Request segments | `0x01` | none | Starts a segment transfer. |
 | Acknowledge segment | `0x02` | `u32 LE` segment count | Lets the device drop the acknowledged segments from its queue. |
 | Set GNSS rate | `0x10` | `u8` Hz (1 or 5) | Acknowledged with `0x80`. |
+| Set max HDOP | `0x11` | `u8` tenths of HDOP, 10 to 100 (1.0 to 10.0) | Acknowledged with `0x80`. Fixes above this HDOP are rejected. |
+| Set minimum move | `0x12` | `u8` metres, 1 to 50 | Acknowledged with `0x80`. While the receiver is stationary, movement below this distance is treated as drift. |
+
+The HDOP and minimum-move commands are parsed and range-checked in the firmware (`control.rs`). They are not yet connected to the device's control characteristic, so they have no effect on a real device yet.
 
 Responses are `0x80` for success and `0x8F` for an unknown or invalid command.
 

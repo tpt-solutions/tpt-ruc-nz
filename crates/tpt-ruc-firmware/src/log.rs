@@ -134,7 +134,7 @@ impl<S: LogStorage> SegmentLog<S> {
 }
 
 /// Encodes a segment as `[start_ms, end_ms, distance_m]`. Returns the bytes written.
-fn encode_segment(segment: &Segment, buf: &mut [u8]) -> Result<usize, LogError> {
+pub(crate) fn encode_segment(segment: &Segment, buf: &mut [u8]) -> Result<usize, LogError> {
     let total = buf.len();
     let mut cursor: &mut [u8] = buf;
     encode::write_array_len(&mut cursor, 3).map_err(|_| LogError::Storage)?;
@@ -144,7 +144,8 @@ fn encode_segment(segment: &Segment, buf: &mut [u8]) -> Result<usize, LogError> 
     Ok(total - cursor.len())
 }
 
-fn decode_segment(payload: &[u8]) -> Option<Segment> {
+/// Decodes a payload written by [`encode_segment`]. `None` if it is malformed.
+pub(crate) fn decode_segment(payload: &[u8]) -> Option<Segment> {
     let mut reader = payload;
     if decode::read_array_len(&mut reader).ok()? != 3 {
         return None;
@@ -159,8 +160,9 @@ fn decode_segment(payload: &[u8]) -> Option<Segment> {
     })
 }
 
-/// CRC-32 (IEEE, reflected), computed bit by bit. Small enough for a device with no table.
-fn crc32(data: &[u8]) -> u32 {
+/// CRC-32 (IEEE, reflected), the checksum stored in every log record.
+/// Computed bit by bit, so it needs no lookup table.
+pub fn crc32(data: &[u8]) -> u32 {
     let mut crc = 0xffff_ffffu32;
     for &byte in data {
         crc ^= u32::from(byte);

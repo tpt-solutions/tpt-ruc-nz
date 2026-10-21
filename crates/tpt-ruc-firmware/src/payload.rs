@@ -157,6 +157,21 @@ mod tests {
         assert_eq!(quality_code(FixQuality::Simulation), 8);
     }
 
+    /// The whole version 1 payload for `fix(None)`, worked out by hand from the
+    /// MessagePack spec: fixarray(6), positive fixint 1, uint64 time, int32 lat,
+    /// uint32 lon, nil speed, positive fixint 1.
+    const GOLDEN_V1: [u8; 23] = [
+        0x96, 0x01, 0xcf, 0x00, 0x00, 0x01, 0x8b, 0xcf, 0xe5, 0x68, 0x7b, 0xd2, 0xe7, 0x64, 0x2e,
+        0x18, 0xce, 0x68, 0x2c, 0xbb, 0x50, 0xc0, 0x01,
+    ];
+
+    #[test]
+    fn the_whole_payload_matches_the_spec_bytes() {
+        let mut buf = [0u8; 64];
+        let n = encode_fix_v1(&fix(None), &mut buf).unwrap();
+        assert_eq!(&buf[..n], &GOLDEN_V1[..]);
+    }
+
     #[test]
     fn golden_bytes_for_version_1() {
         // Pins the wire bytes, so a layout change shows up as a test failure.
