@@ -1,0 +1,29 @@
+[package]
+name = "tpt-ruc-backend"
+description = "Self-hostable HTTP backend for tpt-ruc-nz: trip ingest, server-side RUC re-validation and reports"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+lopdf = { version = "0.46", default-features = false }
+tpt-ruc-core = { version = "0.1.0", path = "../tpt-ruc-core" }
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http = "1"
+http-body-util = "0.1"
+bytes = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util", "signal", "time"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+getrandom = "0.3"
+ed25519-dalek = "2"
+
+[lints]
+workspace = true
