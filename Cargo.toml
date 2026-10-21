@@ -1,5 +1,6 @@
 [workspace]
 resolver = "2"
+exclude = ["firmware/esp"]
 members = [
     "crates/tpt-ruc-core",
     "crates/tpt-ruc-wasm",
