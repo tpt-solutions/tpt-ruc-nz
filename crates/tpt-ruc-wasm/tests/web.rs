@@ -5,7 +5,10 @@
 
 #![cfg(target_arch = "wasm32")]
 
-use tpt_ruc_wasm::{admin_fee_incl_gst_micros, billable_km_js, haversine_m, liability, parse_nmea};
+use tpt_ruc_wasm::{
+    admin_fee_incl_gst_micros, billable_km_js, current_rate_effective, haversine_m,
+    heavy_licence_expires_on_js, liability, parse_nmea,
+};
 use wasm_bindgen_test::*;
 
 #[wasm_bindgen_test]
@@ -46,4 +49,15 @@ fn parse_nmea_rejects_bad_checksum() {
     assert!(
         parse_nmea("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*00").is_err()
     );
+}
+
+#[wasm_bindgen_test]
+fn heavy_licence_expiry_matches_the_core_rule() {
+    let effective = current_rate_effective();
+    assert_eq!(effective, "2026-08-06");
+    assert_eq!(
+        heavy_licence_expires_on_js(3_501, 2026, 8, 6),
+        Some("2026-09-06".to_owned())
+    );
+    assert_eq!(heavy_licence_expires_on_js(3_500, 2026, 8, 6), None);
 }

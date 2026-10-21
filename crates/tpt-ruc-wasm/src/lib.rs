@@ -27,6 +27,24 @@ pub fn billable_km_js(metres: f64) -> f64 {
     billable_km(metres)
 }
 
+/// Effective date of the newest NZTA rate table, as `YYYY-MM-DD`.
+#[wasm_bindgen(js_name = currentRateEffective)]
+pub fn current_rate_effective() -> String {
+    let table = ruc_rates::NZTA_SCHEDULE
+        .last()
+        .expect("the schedule always has a table");
+    let date = table.effective;
+    format!("{:04}-{:02}-{:02}", date.year, date.month, date.day)
+}
+
+/// The date a heavy licence bought under the rate change on `year-month-day`
+/// expires, as `YYYY-MM-DD`. `undefined` for vehicles at or under the heavy limit.
+#[wasm_bindgen(js_name = heavyLicenceExpiresOn)]
+pub fn heavy_licence_expires_on_js(gross_kg: u32, year: u16, month: u8, day: u8) -> Option<String> {
+    ruc::heavy_licence_expires_on(gross_kg, RateDate { year, month, day })
+        .map(|date| format!("{:04}-{:02}-{:02}", date.year, date.month, date.day))
+}
+
 /// Standard RUC liability from the NZTA table in force on the given date.
 ///
 /// Returns `{ rateVersion, billedMetres, inclGstMicros, exclGstMicros, gstMicros }`.
