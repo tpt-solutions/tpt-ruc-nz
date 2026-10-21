@@ -127,7 +127,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
                 match authorize(state, request, &[Method::GET, Method::POST, Method::DELETE]).await
                 {
                     Ok(principal) => principal,
-                    Err(response) => return response,
+                    Err(response) => return *response,
                 };
             let result = if method == Method::POST {
                 trips::ingest(state, &principal, request.headers(), request.body()).await
@@ -141,7 +141,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         "/v1/devices" => {
             let principal = match authorize(state, request, &[Method::GET, Method::POST]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             let result = if method == Method::POST {
                 devices::register(state, &principal, request.body()).await
@@ -153,7 +153,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         _ if path.starts_with("/v1/devices/") => {
             let principal = match authorize(state, request, &[Method::DELETE]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             let id = &path["/v1/devices/".len()..];
             if id.is_empty() || id.contains('/') {
@@ -166,7 +166,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         "/v1/export" => {
             let principal = match authorize(state, request, &[Method::GET]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             data::export(state, &principal)
                 .await
@@ -175,7 +175,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         "/v1/reports/trips.csv" | "/v1/reports/monthly.csv" | "/v1/reports/monthly.pdf" => {
             let principal = match authorize(state, request, &[Method::GET]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             if let Err(error) = principal.require(Role::Manager) {
                 return error.into_response();
@@ -190,7 +190,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         "/v1/eruc/export" => {
             let principal = match authorize(state, request, &[Method::GET]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             if let Err(error) = principal.require(Role::Manager) {
                 return error.into_response();
@@ -202,7 +202,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         "/v1/eruc/jobs" => {
             let principal = match authorize(state, request, &[Method::GET, Method::POST]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             if let Err(error) = principal.require(Role::Manager) {
                 return error.into_response();
@@ -217,7 +217,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         _ if path.starts_with("/v1/eruc/jobs/") => {
             let principal = match authorize(state, request, &[Method::GET]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             if let Err(error) = principal.require(Role::Manager) {
                 return error.into_response();
@@ -229,7 +229,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         "/v1/fleet/summary" | "/v1/alerts" => {
             let principal = match authorize(state, request, &[Method::GET]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             if let Err(error) = principal.require(Role::Manager) {
                 return error.into_response();
@@ -244,7 +244,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
         "/v1/users" => {
             let principal = match authorize(state, request, &[Method::GET, Method::POST]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             if let Err(error) = principal.require(Role::Admin) {
                 return error.into_response();
@@ -264,7 +264,7 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
             };
             let principal = match authorize(state, request, &[allowed]).await {
                 Ok(principal) => principal,
-                Err(response) => return response,
+                Err(response) => return *response,
             };
             if let Err(error) = principal.require(Role::Admin) {
                 return error.into_response();
@@ -300,13 +300,13 @@ pub(crate) async fn authorize(
     state: &AppState,
     request: &Request<Bytes>,
     allowed: &[Method],
-) -> Result<Principal, Response<Full<Bytes>>> {
+) -> Result<Principal, Box<Response<Full<Bytes>>>> {
     if !allowed.contains(request.method()) {
-        return Err(method_not_allowed(allowed));
+        return Err(Box::new(method_not_allowed(allowed)));
     }
     auth::resolve(state, request.headers())
         .await
-        .map_err(ApiError::into_response)
+        .map_err(|error| Box::new(error.into_response()))
 }
 
 /// Readiness: the database answers a trivial query.
