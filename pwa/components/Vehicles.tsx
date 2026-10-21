@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { deleteVehicle, listVehicles, newId, putVehicle, type Vehicle } from "@/lib/db";
+import { notifyVehiclesChanged } from "@/lib/events";
 
 const TYPE_CODES = ["1", "2", "6", "12", "14", "19"] as const;
 
@@ -11,6 +12,7 @@ function errorText(e: unknown): string {
 
 export function Vehicles() {
     const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [name, setName] = useState("");
     const [rateType, setRateType] = useState<string>("1");
     const [grossKg, setGrossKg] = useState("2000");
@@ -25,7 +27,24 @@ export function Vehicles() {
 
     useEffect(refresh, []);
 
-    function add(event: FormEvent) {
+    function resetForm() {
+        setEditingId(null);
+        setName("");
+        setRateType("1");
+        setGrossKg("2000");
+        setElectric(false);
+    }
+
+    function edit(vehicle: Vehicle) {
+        setEditingId(vehicle.id);
+        setName(vehicle.name);
+        setRateType(vehicle.rateType);
+        setGrossKg(String(vehicle.grossKg));
+        setElectric(vehicle.electric);
+        setError(null);
+    }
+
+    function save(event: FormEvent) {
         event.preventDefault();
         const kg = Number(grossKg);
         if (!name.trim()) {
@@ -36,11 +55,19 @@ export function Vehicles() {
             setError("Enter a whole-number weight above zero.");
             return;
         }
-        putVehicle({ id: newId(), name: name.trim(), rateType, grossKg: kg, electric })
+        const vehicle: Vehicle = {
+            id: editingId ?? newId(),
+            name: name.trim(),
+            rateType,
+            grossKg: kg,
+            electric,
+        };
+        putVehicle(vehicle)
             .then(() => {
-                setName("");
+                resetForm();
                 setError(null);
                 refresh();
+                notifyVehiclesChanged();
             })
             .catch((e: unknown) => setError(errorText(e)));
     }
@@ -66,23 +93,35 @@ export function Vehicles() {
                                     {vehicle.electric ? ", electric" : ""}
                                 </span>
                             </span>
-                            <button
-                                type="button"
-                                className="text-sm text-red-700 underline"
-                                onClick={() => {
-                                    deleteVehicle(vehicle.id)
-                                        .then(refresh)
-                                        .catch((e: unknown) => setError(errorText(e)));
-                                }}
-                            >
-                                Delete {vehicle.name}
-                            </button>
+                            <span className="flex gap-3">
+                                <button
+                                    type="button"
+                                    className="text-sm underline"
+                                    onClick={() => edit(vehicle)}
+                                >
+                                    Edit {vehicle.name}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="text-sm text-red-700 underline"
+                                    onClick={() => {
+                                        deleteVehicle(vehicle.id)
+                                            .then(() => {
+                                                refresh();
+                                                notifyVehiclesChanged();
+                                            })
+                                            .catch((e: unknown) => setError(errorText(e)));
+                                    }}
+                                >
+                                    Delete {vehicle.name}
+                                </button>
+                            </span>
                         </li>
                     ))}
                 </ul>
             )}
 
-            <form className="grid gap-3 sm:grid-cols-2" onSubmit={add}>
+            <form className="grid gap-3 sm:grid-cols-2" onSubmit={save}>
                 <label className="flex flex-col gap-1 text-sm">
                     Name
                     <input
@@ -122,12 +161,23 @@ export function Vehicles() {
                     />
                     Battery electric
                 </label>
-                <button
-                    type="submit"
-                    className="rounded bg-neutral-900 px-4 py-2 font-medium text-white sm:col-span-2"
-                >
-                    Add vehicle
-                </button>
+                <div className="flex gap-3 sm:col-span-2">
+                    <button
+                        type="submit"
+                        className="rounded bg-neutral-900 px-4 py-2 font-medium text-white"
+                    >
+                        {editingId ? "Save changes" : "Add vehicle"}
+                    </button>
+                    {editingId && (
+                        <button
+                            type="button"
+                            className="rounded border border-neutral-400 px-4 py-2"
+                            onClick={resetForm}
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
             </form>
 
             {error && <p role="alert">{error}</p>}

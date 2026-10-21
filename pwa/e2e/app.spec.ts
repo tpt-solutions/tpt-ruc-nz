@@ -25,10 +25,10 @@ test("a vehicle added to the profile list survives a reload", async ({ page }) =
     await page.getByLabel("Name").fill("Hilux");
     await page.getByLabel("Vehicle RUC weight (kg)").fill("3000");
     await page.getByRole("button", { name: "Add vehicle" }).click();
-    await expect(page.getByText("Hilux", { exact: true })).toBeVisible();
+    await expect(page.getByRole("listitem").filter({ hasText: "Hilux" })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByText("Hilux", { exact: true })).toBeVisible();
+    await expect(page.getByRole("listitem").filter({ hasText: "Hilux" })).toBeVisible();
 
     await page.getByRole("button", { name: "Delete Hilux" }).click();
     await expect(page.getByText("No vehicles yet.")).toBeVisible();

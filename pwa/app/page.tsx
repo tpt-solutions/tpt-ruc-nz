@@ -1,5 +1,6 @@
 import { RucCalculator } from "@/components/RucCalculator";
 import { Section43Gate } from "@/components/Section43Gate";
+import { Trips } from "@/components/Trips";
 import { Vehicles } from "@/components/Vehicles";
 
 export default function Home() {
@@ -8,8 +9,8 @@ export default function Home() {
             <section className="space-y-8">
                 <h1 className="text-2xl font-semibold">tpt-ruc-nz</h1>
                 <p>
-                    Track distance and estimate RUC liability offline. Trip history arrives in a
-                    later release.
+                    Track distance and estimate RUC liability offline. Trips can be entered by hand
+                    and exported as CSV. Automatic GPS tracking arrives in a later release.
                 </p>
                 <div className="space-y-3">
                     <h2 className="text-lg font-semibold">RUC calculator</h2>
@@ -20,6 +21,7 @@ export default function Home() {
                     <RucCalculator />
                 </div>
                 <Vehicles />
+                <Trips />
             </section>
         </Section43Gate>
     );
