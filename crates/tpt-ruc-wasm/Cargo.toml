@@ -22,3 +22,8 @@ workspace = true
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+
+# The release profile emits bulk-memory instructions, which every current browser supports.
+# Allow them explicitly so the bundled wasm-opt accepts the module.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]

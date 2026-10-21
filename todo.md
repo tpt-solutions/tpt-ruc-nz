@@ -103,7 +103,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Create the `tpt-ruc-wasm` bindings crate (wasm-bindgen 0.2; checks on host and wasm32)
 - [x] Expose parse, distance, RUC calc and (de)serialise functions (`parseNmea`, `haversineM`, `liability`, `adminFeeInclGstMicros`, `billableKm`, and `TripTracker` with JSON fixes)
 - [x] Build script producing an npm package consumed by `pwa/` (`scripts/build-wasm.sh` writes `pwa/wasm-pkg`, which is git-ignored)
-- [ ] Size/perf optimisation (release profile uses wasm-opt via wasm-pack; not yet measured or tuned)
+- [x] Size/perf optimisation (size-focused release profile with LTO and one codegen unit; wasm-opt allows bulk memory. The module is 161 KB before and 143 KB after, or 70 KB gzipped. Speed not measured)
 - [x] Rust-side wasm tests (`wasm-bindgen-test`, run with `wasm-pack test --node crates/tpt-ruc-wasm`)
 
 ### PWA scaffold
