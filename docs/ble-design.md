@@ -6,7 +6,7 @@ Status: **design, not yet implemented.** These are recommendations. The GATT lay
 
 ## Stack
 
-Recommended: `trouble-host` 0.8.0 (Apache-2.0 OR MIT) on `esp-radio` 1.0.0-beta.1 (MIT OR Apache-2.0), with `embassy-executor` 0.10.0 (MIT OR Apache-2.0) to run the tasks.
+Recommended: `trouble-host` 0.8.0 (Apache-2.0 OR MIT) on `esp-radio` 1.0.0-beta.1 (MIT OR Apache-2.0), with `embassy-executor` 0.10.0 (MIT OR Apache-2.0) to run the tasks..
 
 Why:
 - Every crate is dual MIT or Apache-2.0, so it passes the device licence policy with the MIT option.
