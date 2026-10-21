@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- PWA: an upload schedule (manual, on open, every 15 minutes, hourly or daily) that also runs on coming back online and on returning to the tab, and Periodic Background Sync through the service worker where the browser supports it. The sync engine is bundled for the worker by `npm run build:sw` (rolldown, MIT). Background sync has not been run on a real installed app.
 - `tpt-ruc-backend`: vehicles and driver assignment, fleet summary, heavy-licence expiry alerts, optional retention, token rotation, device keys with signed uploads and replay protection, a monthly PDF report, and an OpenAPI description in `docs/api/openapi.yaml`.
 - `tpt-ruc-firmware`: a sector log for flash with round-robin wear levelling and power-cut tests, a per-device Ed25519 identity, and host-side BLE chunking and control-command parsing.
 - `tpt-ruc-core`: duplicate-fix rejection, optional smoothing, licence and overlap model, and an off-road deduction that refuses unless Section 43 approval is flagged.

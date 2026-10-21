@@ -5,5 +5,5 @@ import nextTs from "eslint-config-next/typescript";
 export default defineConfig([
     ...nextVitals,
     ...nextTs,
-    globalIgnores(["out/**", ".next/**", "wasm-pkg/**", "next-env.d.ts"]),
+    globalIgnores(["public/sync-worker.js", "out/**", ".next/**", "wasm-pkg/**", "next-env.d.ts"]),
 ]);

@@ -39,6 +39,17 @@ test("the upload schedule defaults to on open and survives a reload", async ({ p
     await expect(page.getByLabel("Upload schedule")).toHaveValue("hourly");
 });
 
+test("the service worker loads the background sync bundle", async ({ page, context }) => {
+    await passNotice(page);
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+    expect(await worker.evaluate(() => typeof (self as { tptRucSync?: unknown }).tptRucSync)).toBe(
+        "function",
+    );
+    // Chromium without an installed app may or may not offer periodic sync; the line must show either way.
+    await expect(page.getByTestId("background-status")).toBeVisible();
+});
+
 test("a backend address with a path is refused before saving", async ({ page }) => {
     await passNotice(page);
     await page.getByLabel("Backend address").fill("http://localhost:8080/api");

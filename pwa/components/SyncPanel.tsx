@@ -9,6 +9,12 @@ import {
 } from "@/lib/app-settings";
 import { ensureDeviceKey, ed25519Supported, loadDeviceKey, signText } from "@/lib/device-key";
 import { indexedDbSyncStore, listRefusedTrips, requeueTrip, isPending } from "@/lib/sync-store";
+import {
+    backgroundStatusText,
+    browserBackgroundEnv,
+    updatePeriodicSync,
+    type BackgroundSyncStatus,
+} from "@/lib/background-sync";
 import { syncPending, type SyncReport } from "@/lib/sync";
 import {
     DEFAULT_SYNC_SCHEDULE,
@@ -41,6 +47,7 @@ export function SyncPanel() {
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    const [background, setBackground] = useState<BackgroundSyncStatus | null>(null);
     const busyRef = useRef(false);
 
     async function refresh() {
@@ -51,6 +58,14 @@ export function SyncPanel() {
             loadDeviceKey(),
         ]);
         setSettings(current);
+        // Keep the browser's background registration in step with the saved settings.
+        setBackground(
+            await updatePeriodicSync(
+                await browserBackgroundEnv(),
+                current.syncEnabled,
+                current.syncSchedule,
+            ),
+        );
         setUrlText((text) => (text === "" ? current.backendUrl : text));
         setKeyText((text) => (text === "" ? current.apiKey : text));
         setPendingCount(pending.filter(isPending).length);
@@ -148,6 +163,7 @@ export function SyncPanel() {
         setSettings((current) => (current ? { ...current, syncSchedule: value } : current));
         try {
             setSettings(await writeAppSettings({ syncSchedule: value }));
+            await refresh();
             setMessage("Upload schedule saved.");
         } catch (e) {
             setError(errorText(e));
@@ -293,6 +309,11 @@ export function SyncPanel() {
                     Automatic uploads run only while upload is on, and only while this app is open.
                     The Sync now button always works.
                 </p>
+                {background && (
+                    <p className="text-sm text-neutral-600" data-testid="background-status">
+                        {backgroundStatusText(background)}
+                    </p>
+                )}
             </div>
 
             <div className="space-y-2" aria-live="polite">

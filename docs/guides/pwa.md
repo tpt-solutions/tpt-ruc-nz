@@ -36,7 +36,7 @@ Then open `http://localhost:3000` in your browser.
 
 ## Where your data lives
 
-Everything stays in your browser, in the browser's own storage (IndexedDB). The app makes no network requests. It does not send trips or vehicles anywhere. Clearing your browser's site data deletes the app's data, so make a backup first.
+Everything stays in your browser, in the browser's own storage (IndexedDB). Nothing is sent anywhere unless you turn on upload (see below). Clearing your browser's site data deletes the app's data, so make a backup first.
 
 ## Install it on your device
 
@@ -47,9 +47,21 @@ Installing adds the app to your home screen or applications list, so it opens li
 
 Installing needs the app to be served over HTTPS, or from `localhost`. A browser will not install an app from a plain `http://` address on another computer.
 
+## Uploading to your backend (optional)
+
+Under **Backend and upload**, enter the address and API key of your self-hosted backend, save, then tick **Upload trips to the backend**. Only trips are sent, to the address you entered.
+
+Pick when uploads run in **Upload schedule**:
+
+- **Manual only:** only the **Sync now** button uploads.
+- **When the app opens or comes back online** (the default).
+- **Every 15 minutes, every hour, or once a day:** the app also uploads when this schedule says it is due. It checks when you open it, when you switch back to its tab, when the browser comes back online, and once a minute while it is open.
+
+**Background upload** is an extra for browsers that support Periodic Background Sync (Chrome and Edge, for an installed app). With an interval schedule and upload on, the app asks the browser to wake it and upload even when it is closed. The browser decides when, and usually much less often than you ask, so do not rely on it. The line under the schedule says whether it is active, refused, or not available. Safari and Firefox do not have it, and there the app uploads only while it is open. This has not been tested over a long period on a real device.
+
 ## Limits to know about
 
-- **No connection to the server yet.** The app does not send data to the self-hosted backend. Sync is planned.
+- **Uploads are off until you turn them on.** See "Uploading to your backend" below.
 - **No GPS from the browser.** The app does not read your location. Trips are entered by hand or imported from a device file.
 - **Bluetooth is not connected yet.** The app cannot connect to a GPS device over Bluetooth yet. Chrome and Edge on desktop support Bluetooth in principle, but this app's connection code is not written. Safari and Firefox do not support Web Bluetooth at all.
 - **Rates are from the NZTA page retrieved on 21 October 2026.** Check them against [nzta.govt.nz](https://www.nzta.govt.nz) before you rely on a figure.

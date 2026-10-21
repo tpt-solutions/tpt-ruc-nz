@@ -40,3 +40,6 @@ Thumbs.db
 /pwa/test-results/
 /pwa/playwright-report/
 /firmware/esp/target/
+
+# Built from pwa/lib/sw-sync-entry.ts by `npm run build:sw`
+/pwa/public/sync-worker.js

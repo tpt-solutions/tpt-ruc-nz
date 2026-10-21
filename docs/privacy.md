@@ -80,4 +80,6 @@ A backup of the server is a copy of the data folder or volume. It contains your 
 
 ## Changes
 
-This statement will change as the code changes. When sync to the server is added to the web app, this statement will be updated before that release.
+This statement will change as the code changes.
+
+The web app uploads trips only while "Upload trips to the backend" is ticked, and only to the backend address you entered. With an interval schedule on a supporting browser, the app's service worker can also upload while the app is closed. It does the same upload with the same settings, and does nothing when upload is off.

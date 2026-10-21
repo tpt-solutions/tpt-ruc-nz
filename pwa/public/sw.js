@@ -6,8 +6,27 @@
 // (stale-while-revalidate). Navigations fall back to the cached home page, so
 // the app opens offline after one online visit.
 
-const CACHE = "tpt-ruc-shell-v1";
+const CACHE = "tpt-ruc-shell-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
+
+// Periodic Background Sync. The sync engine is bundled from lib/ into
+// sync-worker.js by `npm run build:sw`. If that file is missing the shell
+// still works, and background sync is simply unavailable.
+const PERIODIC_SYNC_TAG = "tpt-ruc-sync"; // keep in step with lib/background-sync.ts
+try {
+    importScripts("/sync-worker.js");
+} catch (error) {
+    console.warn("sync-worker.js not loaded; background sync is off", error);
+}
+
+self.addEventListener("periodicsync", (event) => {
+    if (event.tag !== PERIODIC_SYNC_TAG || typeof self.tptRucSync !== "function") return;
+    event.waitUntil(
+        self.tptRucSync().catch((error) => {
+            console.warn("background sync failed", error);
+        }),
+    );
+});
 
 self.addEventListener("install", (event) => {
     event.waitUntil(

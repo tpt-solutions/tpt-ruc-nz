@@ -5,15 +5,16 @@
   "license": "MIT OR Apache-2.0",
   "description": "Offline-first RUC tracker PWA for tpt-ruc-nz",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "npm run build:sw && next dev",
+    "build": "npm run build:sw && next build",
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
-    "licenses": "node scripts/check-licences.mjs"
+    "licenses": "node scripts/check-licences.mjs",
+    "build:sw": "rolldown lib/sw-sync-entry.ts --file public/sync-worker.js --format iife --platform browser --minify"
   },
   "dependencies": {
     "idb": "8.0.4",
@@ -36,6 +37,7 @@
     "license-checker": "25.0.1",
     "postcss": "8.5.31",
     "prettier": "3.9.10",
+    "rolldown": "1.2.14",
     "serve": "14.2.6",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",

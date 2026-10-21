@@ -209,7 +209,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Sign payloads; show sync status and errors (signed when the browser supports Ed25519. Status and errors are shown)
 - [x] Fleet views in the PWA (if online/org mode) (uses `/v1/fleet/summary`, so it needs a manager or admin key)
 - [x] In-app sync schedule setting: manual, on open, every 15 minutes, hourly or daily, plus sync on `visibilitychange` and `online` (`lib/sync-schedule.ts`, a schedule select in the sync panel; checks run on open, `online`, `visibilitychange` and a 60 s page timer, and only while the app is open. Unit and end-to-end tested)
-- [ ] Periodic Background Sync via the service worker (progressive enhancement: Chromium and installed PWAs only; the browser picks the actual timing)
+- [x] Periodic Background Sync via the service worker (progressive enhancement: Chromium and installed PWAs only; the browser picks the actual timing). `lib/background-sync.ts` registers it, `lib/background-sync-worker.ts` runs the engine in the worker, and `npm run build:sw` bundles it into `public/sync-worker.js` with rolldown. Unit-tested with fakes, and an end-to-end test checks the worker loads the bundle. NOT tested on an installed app: the browser's actual wake-up timing is unverified
 
 ### Deployment
 - [x] Multi-stage Dockerfile (small image, non-root, healthcheck) (`Dockerfile`: a Rust build stage and a Debian slim runtime that runs as user 10001. The health check is `tpt-ruc-backend healthcheck`, so no `curl` is needed. Not yet built in a Docker environment, only its build command has been checked outside Docker)
