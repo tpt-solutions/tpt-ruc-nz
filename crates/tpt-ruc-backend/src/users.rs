@@ -12,6 +12,7 @@ use serde_json::json;
 
 use crate::auth::{random_hex, token_hash, Role};
 use crate::error::ApiError;
+use crate::passwords;
 use crate::{json_response, AppState};
 
 /// Longest display name accepted, in bytes.
@@ -155,5 +156,50 @@ pub async fn rotate_token(state: &AppState, id: &str) -> Result<Response<Full<By
             "token": token,
             "note": "Store this token now. It cannot be shown again, and the old token no longer works.",
         }),
+    ))
+}
+
+#[derive(Debug, Deserialize)]
+struct PasswordRequest {
+    password: String,
+}
+
+/// `PUT /v1/users/{id}/password`: sets the user's password, which lets them sign in with `POST /v1/sessions`.
+/// Every session the user holds ends at once, so an old sign-in cannot outlive a password change.
+pub async fn set_password(
+    state: &AppState,
+    id: &str,
+    body: &Bytes,
+) -> Result<Response<Full<Bytes>>, ApiError> {
+    let request: PasswordRequest = serde_json::from_slice(body)
+        .map_err(|error| ApiError::BadRequest(format!("invalid JSON: {error}")))?;
+    passwords::check_policy(&request.password)?;
+    let stored = passwords::hash(&request.password)?;
+
+    let id = id.to_owned();
+    let ended = {
+        let id = id.clone();
+        state
+            .db
+            .run(move |connection| {
+                let transaction = connection.transaction()?;
+                let changed = transaction.execute(
+                    "UPDATE users SET password_hash = ?2 WHERE id = ?1",
+                    params![id, stored],
+                )?;
+                if changed == 0 {
+                    return Err(ApiError::NotFound);
+                }
+                let ended =
+                    transaction.execute("DELETE FROM sessions WHERE user_id = ?1", params![id])?;
+                transaction.commit()?;
+                Ok(ended)
+            })
+            .await?
+    };
+    tracing::info!(user = %id, sessions_ended = ended, "user password set");
+    Ok(json_response(
+        StatusCode::OK,
+        &json!({ "id": id, "password_set": true, "sessions_ended": ended }),
     ))
 }

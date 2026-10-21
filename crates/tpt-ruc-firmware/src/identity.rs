@@ -51,6 +51,28 @@ impl DeviceIdentity {
     }
 }
 
+/// Where the device seed comes from. The chip driver implements this.
+///
+/// On first boot the implementation draws the seed from a hardware random source
+/// and stores it. Later calls return the same seed. The seed must never leave
+/// the device, so the trait has no way to read it back out.
+///
+/// TODO (on-chip, not written): use the esp-hal `Rng` for the seed, and keep it
+/// in flash behind a read-protected or write-once partition. Tracked in
+/// `todo.md`, Phase 3, "Pairing/bonding approach and device identity".
+pub trait SeedSource {
+    /// Why the seed could not be produced, such as a storage or random-source fault.
+    type Error;
+
+    /// Returns the device seed, creating and storing it on first use.
+    fn seed(&mut self) -> Result<[u8; SEED_LEN], Self::Error>;
+}
+
+/// Loads the device identity from `source`.
+pub fn load_identity<S: SeedSource>(source: &mut S) -> Result<DeviceIdentity, S::Error> {
+    Ok(DeviceIdentity::from_seed(&source.seed()?))
+}
+
 /// Checks `signature` over `message` against `public_key`. Malformed keys fail the check.
 pub fn verify(
     public_key: &[u8; PUBLIC_KEY_LEN],
@@ -121,6 +143,65 @@ mod tests {
         let mut bogus = [0u8; 32];
         bogus[0] = 2;
         assert!(!verify(&bogus, b"x", &[0u8; 64]));
+    }
+
+    /// Host stand-in for the chip's seed store. It keeps a seed in memory and counts calls.
+    struct MemorySeed {
+        seed: Option<[u8; SEED_LEN]>,
+        calls: u32,
+    }
+
+    impl SeedSource for MemorySeed {
+        type Error = core::convert::Infallible;
+
+        fn seed(&mut self) -> Result<[u8; SEED_LEN], Self::Error> {
+            self.calls += 1;
+            Ok(*self.seed.get_or_insert(SEED_RFC8032))
+        }
+    }
+
+    /// A seed source whose storage has failed.
+    struct BrokenSeed;
+
+    impl SeedSource for BrokenSeed {
+        type Error = &'static str;
+
+        fn seed(&mut self) -> Result<[u8; SEED_LEN], Self::Error> {
+            Err("flash read failed")
+        }
+    }
+
+    #[test]
+    fn the_identity_loads_from_the_seed_source() {
+        let mut source = MemorySeed {
+            seed: None,
+            calls: 0,
+        };
+        let identity = load_identity(&mut source).unwrap();
+        assert_eq!(
+            identity.public_key(),
+            DeviceIdentity::from_seed(&SEED_RFC8032).public_key()
+        );
+    }
+
+    #[test]
+    fn the_same_store_gives_the_same_identity_on_every_boot() {
+        let mut source = MemorySeed {
+            seed: Some([7u8; SEED_LEN]),
+            calls: 0,
+        };
+        let first = load_identity(&mut source).unwrap().public_key();
+        let second = load_identity(&mut source).unwrap().public_key();
+        assert_eq!(first, second);
+        assert_eq!(source.calls, 2);
+    }
+
+    #[test]
+    fn a_failing_seed_store_is_reported_not_replaced() {
+        assert_eq!(
+            load_identity(&mut BrokenSeed).err(),
+            Some("flash read failed")
+        );
     }
 
     #[test]

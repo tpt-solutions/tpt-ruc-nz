@@ -2,7 +2,7 @@
 
 Written for: the owner, who must choose a licence for the hardware design files.
 
-> **Recommendation for the owner to decide.** The options below are compared with the project's stated stance, which is permissive. The licence texts were **not** read from their official sources during this write-up. Check each text against its published version before adopting one. The properties listed are a summary to start from, not legal advice.
+> **Decided 2026-10-22:** CERN-OHL-P-2.0, following the recommendation below. The full licence text is not yet in the repository. See `hardware/LICENSE.md`.
 
 ## What needs a licence
 
@@ -72,4 +72,4 @@ Before adopting this, check the official CERN-OHL-P-2.0 text, and confirm that t
 
 | Date | Decision | Decided by |
 |---|---|---|
-| | Not yet decided | |
+| 2026-10-22 | CERN-OHL-P-2.0 for the hardware design files. Documentation stays under the project's licence. | Owner, by instruction to follow the recommendations |

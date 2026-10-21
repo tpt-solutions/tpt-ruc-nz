@@ -24,11 +24,14 @@ pub mod error;
 pub mod eruc;
 pub mod eruc_jobs;
 pub mod fleet;
+pub mod gps;
 pub mod healthcheck;
+pub mod passwords;
 pub mod pdf;
 pub mod ratelimit;
 pub mod reports;
 pub mod server;
+pub mod sessions;
 pub mod static_files;
 pub mod trips;
 pub mod users;
@@ -67,6 +70,8 @@ pub struct AppState {
     pub pwa_dir: Option<PathBuf>,
     /// The provider eRUC jobs are pushed to, from `TPT_RUC_ERUC_PROVIDER`. `None` disables pushing.
     pub eruc_push: Option<Arc<dyn PushProvider>>,
+    /// Whether users may upload raw GPS points, from `TPT_RUC_ALLOW_RAW_GPS`.
+    pub allow_raw_gps: bool,
 }
 
 /// Handles one request. The body has already been read, and is at most [`MAX_BODY_BYTES`].
@@ -256,11 +261,31 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
             };
             result.unwrap_or_else(|error| error.into_response())
         }
+        "/v1/sessions" if method == Method::POST => {
+            let result = sessions::login(state, request.body()).await;
+            result.unwrap_or_else(|error| error.into_response())
+        }
+        "/v1/sessions" if method == Method::DELETE => {
+            let result = sessions::logout(state, request.headers()).await;
+            result.unwrap_or_else(|error| error.into_response())
+        }
+        "/v1/sessions" => method_not_allowed(&[Method::POST, Method::DELETE]),
+        "/v1/gps/points" => {
+            let principal = match authorize(state, request, &[Method::POST]).await {
+                Ok(principal) => principal,
+                Err(response) => return *response,
+            };
+            gps::upload(state, &principal, request.body())
+                .await
+                .unwrap_or_else(|error| error.into_response())
+        }
         _ if path.starts_with("/v1/users/") => {
             let rest = &path["/v1/users/".len()..];
-            let (allowed, token_for) = match rest.strip_suffix("/token") {
-                Some(id) => (Method::POST, Some(id)),
-                None => (Method::DELETE, None),
+            // The sub-resource suffix decides which method is allowed. Anything else is a delete.
+            let (allowed, id, action) = match rest.rsplit_once('/') {
+                Some((id, "token")) => (Method::POST, id, Some("token")),
+                Some((id, "password")) => (Method::PUT, id, Some("password")),
+                _ => (Method::DELETE, rest, None),
             };
             let principal = match authorize(state, request, &[allowed]).await {
                 Ok(principal) => principal,
@@ -269,12 +294,14 @@ async fn route(state: &AppState, request: &Request<Bytes>) -> Response<Full<Byte
             if let Err(error) = principal.require(Role::Admin) {
                 return error.into_response();
             }
-            let result = match token_for {
-                Some(id) if !id.is_empty() && !id.contains('/') => {
-                    users::rotate_token(state, id).await
+            let single_id = !id.is_empty() && !id.contains('/');
+            let result = match action {
+                Some("token") if single_id => users::rotate_token(state, id).await,
+                Some("password") if single_id => {
+                    users::set_password(state, id, request.body()).await
                 }
                 Some(_) => Err(ApiError::NotFound),
-                None if !rest.is_empty() && !rest.contains('/') => users::delete(state, rest).await,
+                None if single_id => users::delete(state, id).await,
                 None => Err(ApiError::NotFound),
             };
             result.unwrap_or_else(|error| error.into_response())

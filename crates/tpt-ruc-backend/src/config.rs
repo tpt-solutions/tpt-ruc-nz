@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2026 TPT Solutions
 
-//! Runtime configuration, read from environment variables.
+//! Runtime configuration, read from environment variables and an optional file.
 //!
 //! Every setting has a default, so the server starts with no configuration at
 //! all. The API key is the one exception that may be left unset: the server
 //! then generates one on first start (see [`crate::apikey`]).
+//!
+//! A TOML file named by `TPT_RUC_CONFIG` can hold the same settings. Each key
+//! is the environment variable's name, for example `TPT_RUC_BIND = "..."`, and
+//! a list such as `TPT_RUC_CORS_ORIGINS` may be written as a TOML array. An
+//! environment variable always wins over the file.
 
 use std::fmt;
 use std::net::SocketAddr;
@@ -38,6 +43,8 @@ pub struct Config {
     pub pwa_dir: Option<PathBuf>,
     /// The eRUC push provider named in `TPT_RUC_ERUC_PROVIDER`. `None` sends nothing.
     pub eruc_provider: Option<String>,
+    /// Whether users may upload raw GPS points, from `TPT_RUC_ALLOW_RAW_GPS`. Off by default.
+    pub allow_raw_gps: bool,
 }
 
 /// Why the configuration cannot be used.
@@ -49,6 +56,10 @@ pub enum ConfigError {
     InvalidBind(String),
     /// `TPT_RUC_RETENTION_DAYS` is not a whole number of at least 1.
     InvalidRetention(String),
+    /// A switch such as `TPT_RUC_ALLOW_RAW_GPS` is not `true` or `false`. Holds the name and the value.
+    InvalidFlag(String, String),
+    /// The file named by `TPT_RUC_CONFIG` cannot be read or parsed, or holds a value of the wrong kind.
+    File(String),
 }
 
 impl fmt::Display for ConfigError {
@@ -63,6 +74,10 @@ impl fmt::Display for ConfigError {
                 f,
                 "TPT_RUC_RETENTION_DAYS must be a whole number of days, at least 1, not {value}"
             ),
+            Self::InvalidFlag(name, value) => {
+                write!(f, "{name} must be true or false, not {value}")
+            }
+            Self::File(message) => write!(f, "configuration file: {message}"),
         }
     }
 }
@@ -70,9 +85,20 @@ impl fmt::Display for ConfigError {
 impl std::error::Error for ConfigError {}
 
 impl Config {
-    /// Reads the configuration from the process environment.
+    /// Reads the configuration from the process environment and the file named by `TPT_RUC_CONFIG`, if any.
     pub fn from_env() -> Result<Self, ConfigError> {
-        Self::from_lookup(|name| std::env::var(name).ok())
+        let file = match std::env::var("TPT_RUC_CONFIG")
+            .ok()
+            .filter(|path| !path.trim().is_empty())
+        {
+            Some(path) => Some(read_file(Path::new(path.trim()))?),
+            None => None,
+        };
+        Self::from_lookup(|name| {
+            std::env::var(name)
+                .ok()
+                .or_else(|| file.as_ref().and_then(|values| values.get(name).cloned()))
+        })
     }
 
     /// Builds the configuration from any name lookup. Tests use this instead of the environment.
@@ -121,6 +147,19 @@ impl Config {
             .filter(|value| !value.is_empty())
             .map(PathBuf::from);
 
+        let allow_raw_gps = match get("TPT_RUC_ALLOW_RAW_GPS").map(|v| v.trim().to_owned()) {
+            None => false,
+            Some(text) if text.is_empty() => false,
+            Some(text) if text.eq_ignore_ascii_case("true") => true,
+            Some(text) if text.eq_ignore_ascii_case("false") => false,
+            Some(text) => {
+                return Err(ConfigError::InvalidFlag(
+                    "TPT_RUC_ALLOW_RAW_GPS".to_owned(),
+                    text,
+                ))
+            }
+        };
+
         Ok(Self {
             bind,
             database_url,
@@ -129,6 +168,7 @@ impl Config {
             retention_days,
             pwa_dir,
             eruc_provider,
+            allow_raw_gps,
         })
     }
 
@@ -136,6 +176,50 @@ impl Config {
     pub fn data_dir(&self) -> PathBuf {
         data_dir_of(&self.database_url)
     }
+}
+
+/// Reads a configuration file into name/value pairs. Lists are joined with commas,
+/// so they read the same as the environment variable form.
+pub fn read_file(path: &Path) -> Result<std::collections::HashMap<String, String>, ConfigError> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|error| ConfigError::File(format!("cannot read {}: {error}", path.display())))?;
+    parse_file(&text)
+}
+
+/// Parses the text of a configuration file. See [`read_file`].
+pub fn parse_file(text: &str) -> Result<std::collections::HashMap<String, String>, ConfigError> {
+    let table: toml::Table = text
+        .parse()
+        .map_err(|error: toml::de::Error| ConfigError::File(error.to_string()))?;
+    let mut values = std::collections::HashMap::new();
+    for (name, value) in table {
+        let text = match value {
+            toml::Value::String(text) => text,
+            toml::Value::Integer(number) => number.to_string(),
+            toml::Value::Boolean(flag) => flag.to_string(),
+            toml::Value::Array(items) => {
+                let mut parts = Vec::with_capacity(items.len());
+                for item in items {
+                    match item {
+                        toml::Value::String(text) => parts.push(text),
+                        _ => {
+                            return Err(ConfigError::File(format!(
+                                "{name} may hold only strings in a list"
+                            )))
+                        }
+                    }
+                }
+                parts.join(",")
+            }
+            _ => {
+                return Err(ConfigError::File(format!(
+                    "{name} must be a string, number, boolean or list of strings"
+                )))
+            }
+        };
+        values.insert(name, text);
+    }
+    Ok(values)
 }
 
 /// The folder containing the SQLite file named by `url`. Falls back to the working directory.
@@ -225,6 +309,59 @@ mod tests {
                 Err(ConfigError::InvalidRetention(_))
             ));
         }
+    }
+
+    #[test]
+    fn a_file_supplies_settings_and_the_environment_overrides_it() {
+        let values = parse_file(
+            "TPT_RUC_BIND = \"0.0.0.0:9000\"
+             TPT_RUC_RETENTION_DAYS = 90
+             TPT_RUC_CORS_ORIGINS = [\"https://a.example\", \"https://b.example\"]
+",
+        )
+        .unwrap();
+        let from_file = |name: &str| values.get(name).cloned();
+        let config = Config::from_lookup(|name| {
+            if name == "TPT_RUC_BIND" {
+                Some("127.0.0.1:7000".to_owned())
+            } else {
+                from_file(name)
+            }
+        })
+        .unwrap();
+        assert_eq!(config.bind, "127.0.0.1:7000".parse().unwrap());
+        assert_eq!(config.retention_days, Some(90));
+        assert_eq!(
+            config.cors_origins,
+            vec!["https://a.example", "https://b.example"]
+        );
+    }
+
+    #[test]
+    fn a_file_with_a_bad_value_kind_is_refused() {
+        assert!(matches!(
+            parse_file("TPT_RUC_CORS_ORIGINS = [1, 2]"),
+            Err(ConfigError::File(_))
+        ));
+        assert!(matches!(
+            parse_file("TPT_RUC_BIND = ["),
+            Err(ConfigError::File(_))
+        ));
+        assert!(matches!(
+            parse_file("TPT_RUC_RETENTION_DAYS = { days = 3 }"),
+            Err(ConfigError::File(_))
+        ));
+    }
+
+    #[test]
+    fn raw_gps_is_off_unless_switched_on() {
+        assert!(!Config::from_lookup(lookup(&[])).unwrap().allow_raw_gps);
+        let on = Config::from_lookup(lookup(&[("TPT_RUC_ALLOW_RAW_GPS", "True")])).unwrap();
+        assert!(on.allow_raw_gps);
+        assert!(matches!(
+            Config::from_lookup(lookup(&[("TPT_RUC_ALLOW_RAW_GPS", "yes")])),
+            Err(ConfigError::InvalidFlag(_, _))
+        ));
     }
 
     #[test]

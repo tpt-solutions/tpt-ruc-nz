@@ -6,7 +6,7 @@ Status: **design, not yet implemented.** These are recommendations. The GATT lay
 
 ## Stack
 
-Recommended: `trouble-host` 0.8.0 (Apache-2.0 OR MIT) on `esp-radio` 1.0.0-beta.1 (MIT OR Apache-2.0), with `embassy-executor` 0.10.0 (MIT OR Apache-2.0) to run the tasks..
+Decided (following the recommendation): `trouble-host` 0.8.0 (Apache-2.0 OR MIT) on `esp-radio` 1.0.0-beta.1 (MIT OR Apache-2.0), with `embassy-executor` 0.10.0 (MIT OR Apache-2.0) to run the tasks..
 
 Why:
 - Every crate is dual MIT or Apache-2.0, so it passes the device licence policy with the MIT option.
@@ -33,7 +33,9 @@ Service UUID: `7b0e0001-5f4c-4a51-9c3d-7a6b5c4d3e2f` (a random UUID, reserved fo
 
 ### Segment transfer
 
-The phone asks for segments, and the device sends them in order, oldest first. A segment is sent only after the phone acknowledges the one before it, so a dropped connection loses nothing.
+The phone asks for segments, and the device sends them in order, oldest first, without waiting for each one. The phone acknowledges with a count: `0x02` with a `u32` meaning "I hold the first N segments of this transfer". The device frees flash only for whole sectors whose segments are all covered by that count. A sector that is only partly covered stays, so a dropped connection loses nothing. The next transfer starts at the oldest segment still on the device, so the phone may receive some segments twice and must drop duplicates.
+
+A transfer of an empty log sends no chunks. The phone reads the used-bytes count in the device info to tell an empty log from a failed transfer.
 
 Chunk format, one notification per chunk:
 
@@ -56,7 +58,15 @@ Written as a single byte command, followed by arguments.
 | Set max HDOP | `0x11` | `u8` tenths of HDOP, 10 to 100 (1.0 to 10.0) | Acknowledged with `0x80`. Fixes above this HDOP are rejected. |
 | Set minimum move | `0x12` | `u8` metres, 1 to 50 | Acknowledged with `0x80`. While the receiver is stationary, movement below this distance is treated as drift. |
 
-The HDOP and minimum-move commands are parsed and range-checked in the firmware (`control.rs`). They are not yet connected to the device's control characteristic, so they have no effect on a real device yet.
+Every write to the control characteristic goes through `gatt::handle_write`. It parses the bytes, applies accepted settings, and returns the status byte to notify and an action for the firmware:
+
+- `RequestSegments` starts a transfer session from the oldest segment in the flash log.
+- `AcknowledgeSegments(n)` passes the count to that session, which frees the sectors it covers.
+- `SettingsChanged` carries the new settings. The firmware applies `gnss_hz` to the receiver, and the trip thresholds to the recorder. The recorder closes its open segment first, so distance measured under old thresholds is never merged with new distance.
+
+A refused write changes nothing. Its status is `0x8F`. An acknowledgement larger than the number of segments sent is refused by the session, not by the write itself, because the write cannot know how many were sent. The firmware reports that refusal with a `0x8F` notification after the `0x80` for the write.
+
+The BLE stack, the UART setting for the receiver's output rate, and the notifications themselves are not written yet. They need a board.
 
 Responses are `0x80` for success and `0x8F` for an unknown or invalid command.
 
@@ -71,7 +81,7 @@ The payload version (currently 1) and this GATT layout are versioned separately.
 
 ## Open items
 
-- [ ] Choose the MTU negotiation target. The default ATT MTU is 23, which gives 17-byte chunks. Request 247 after connection.
-- [ ] Decide the pairing approach (see `todo.md`).
+- [x] Choose the MTU negotiation target. Decided: request 247 after connection, and use the default of 23 until that succeeds. Measurement on a board is still open.
+- [x] Decide the pairing approach. Decided: the two-layer approach in `docs/pairing.md`. It is not built yet.
 - [ ] Measure the transfer rate on the C6 and S3 once the stack runs.
 - [ ] Write the PWA client against the characteristic table above.

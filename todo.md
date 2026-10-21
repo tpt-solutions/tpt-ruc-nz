@@ -143,18 +143,18 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ### Firmware
 - [x] Create the `tpt-ruc-firmware` crate with chip feature flags (`esp32s3`, `esp32c3`, `esp32c6`; enabling two is a compile error. The esp-hal driver is separate and not yet written)
 - [x] Toolchain config for Xtensa (espup) and RISC-V. CI builds the C6 and P4 (RISC-V) binaries and checks the device licence policy. The S3 (Xtensa) build is local only, because it needs the espup toolchain
-- [ ] Verify the esp-hal and BLE stack (`esp-hal` 1.2.2, `esp-println`, `esp-backtrace` and `esp-alloc` are MIT/Apache and pass the device policy. The BLE stack is not chosen yet. The device policy has two advisory exceptions and one licence exception, in `firmware/esp/deny.toml`)
+- [ ] Verify the esp-hal and BLE stack (`esp-hal` 1.2.2, `esp-println`, `esp-backtrace` and `esp-alloc` are MIT/Apache and pass the device policy. The BLE stack is chosen (decided 2026-10-22): `trouble-host` on `esp-radio`, as in `docs/ble-design.md`. Not built yet. The device policy has two advisory exceptions and one licence exception, in `firmware/esp/deny.toml`)
 - [x] GNSS UART reader task feeding `tpt-ruc-core` (`firmware/esp` reads UART1 at 9600 baud and runs the recorder. It links for ESP32-C6, ESP32-S3 and ESP32-P4, but none has been flashed or run yet)
 - [x] Distance accumulation on-device using the core (`Recorder` runs the core tracker on the device; host-tested)
 - [ ] Flash storage for trip segments (LittleFS or log-structured; wear levelling; power-fail safe) (`flash.rs` is a sector log with round-robin wear levelling, CRC-checked sector headers, sealing of torn tails, and retirement of the oldest sector after sync. A host test cuts power at every operation and checks recovery, and a mutation check confirmed the test catches a broken seal. The on-chip flash driver behind `SectorStorage` is not written, so this is not yet verified on hardware)
-- [ ] Data-loss prevention when BLE is disconnected (a bounded in-RAM segment queue that counts drops is done and tested, and segments can now be stored in the sector log. Connecting the queue to flash and the BLE sender are still to do)
+- [ ] Data-loss prevention when BLE is disconnected (a bounded in-RAM segment queue that counts drops is done. `queue::drain_into` moves queued segments into the sector log, and keeps them in RAM while flash is full. `session::TransferSession` sends stored segments in batches and frees a sector only after the phone acknowledges all of it. Both are host-tested, including power cuts during the release. The on-chip BLE sender is still to do, and nothing here has run on a board)
 - [x] Custom BLE GATT service and UUID design (version 1 layout in `docs/ble-design.md`: live fix, segment transfer, control and device info characteristics. Not implemented yet)
 - [x] MessagePack payload encoding of timestamp/lat/lon/speed/fix quality (version 1 array, pinned by golden bytes; `tpt-ruc-firmware::payload`)
-- [ ] Chunking and MTU negotiation (the firmware chunk encoder and reassembler are implemented in `transfer.rs` and checked against the PWA reassembler's framing; MTU negotiation and on-device timing are not measured)
-- [ ] Pairing/bonding approach and device identity (per-device ed25519 keypair stored on device) (`identity.rs` signs and verifies with Ed25519, checked against the RFC 8032 test vector. Generating and storing the seed on the chip, and the pairing and bonding approach, are still to do)
-- [ ] OTA update plan (decide now or defer)
+- [ ] Chunking and MTU negotiation (MTU target decided 2026-10-22: request 247 after connection; the firmware chunk encoder and reassembler are implemented in `transfer.rs` and checked against the PWA reassembler's framing; MTU negotiation and on-device timing are not measured)
+- [ ] Pairing/bonding approach and device identity (approach decided 2026-10-22, per `docs/pairing.md`: two layers, with an enrolment secret on a label or QR code. Not built; per-device ed25519 keypair stored on device) (`identity.rs` signs and verifies with Ed25519, checked against the RFC 8032 test vector. `SeedSource` is the seed abstraction, with a host test implementation. The on-chip RNG and seed storage are still to do, and the pairing approach is a recommendation awaiting the owner's decision in `docs/pairing.md`)
+- [x] OTA update plan (decided: deferred past v1, with the requirements for adopting it later in `docs/ota-plan.md`)
 - [ ] Low-power modes and watchdog
-- [ ] Firmware config (GNSS rate, filters) via BLE (command parser and validation are in `control.rs`, host-tested. Commands 0x11 and 0x12 are documented in `docs/ble-design.md`. Not yet wired to the GATT characteristic)
+- [ ] Firmware config (GNSS rate, filters) via BLE (`gatt::handle_write` parses, validates and applies writes to the control characteristic, host-tested. The recorder takes new filter thresholds through `apply_config`. Still open: the UART command that sets the receiver's output rate, and the BLE stack that calls `handle_write`)
 - [x] Host-side tests for the firmware logic (21 tests: GNSS framing, fix merging, recorder, segment queue, payload)
 
 ### PWA ↔ ESP32
@@ -171,23 +171,23 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 
 ### Backend core
 - [x] Create the `tpt-ruc-backend` crate (hyper and tokio, with our own routing, CORS and request logging; `cargo deny` passes. Axum and sqlx were dropped because they pulled in `sync_wrapper` (Apache-2.0 only) and `ryu` (BSL-1.0, not allowed))
-- [ ] DB layer supporting **SQLite and PostgreSQL** (sqlx or similar; licence check) (SQLite via rusqlite, bundled, is done. PostgreSQL is BLOCKED for now: the handlers are synchronous, about 34 call sites would need an async rewrite, and there is no PostgreSQL server here to test against. tokio-postgres passes the licence check)
+- [ ] DB layer supporting **SQLite and PostgreSQL** (sqlx or similar; licence check) (SQLite via rusqlite, bundled, is done. PostgreSQL is BLOCKED for now: the handlers are synchronous, about 34 call sites would need an async rewrite, and there is no PostgreSQL server here to test against. tokio-postgres passes the licence check) Still open after this round. There is no PostgreSQL server or Docker in this environment to test against, so the async rewrite is not started.
 - [ ] Migrations for both databases; CI tests against both (SQLite migration `0001_init.sql` runs at startup and is tested; the PostgreSQL migrations and CI job are still to do)
-- [ ] Config (env + file), structured logging (`RUST_LOG`), health/readiness endpoints (env config, `RUST_LOG` logging, `/healthz` and `/readyz` are done; a config file is not)
+- [x] Config (env + file), structured logging (`RUST_LOG`), health/readiness endpoints (env config; an optional TOML file named by `TPT_RUC_CONFIG`, with environment variables overriding it; `RUST_LOG` logging; `/healthz` and `/readyz`)
 - [x] OpenAPI spec (verify generator licence) and versioned API (`/v1`) (`docs/api/openapi.yaml` covers all 23 operations, hand-written with no generator. It is checked with Python's yaml parser, since no YAML crate is in the tree)
 - [x] Rate limiting, request size limits, CORS for the PWA (body size limit and CORS allow-list are done. Rate limiting is per client IP: 120 requests a minute, and a client is blocked for 15 minutes after 10 failed API key checks in that window. It sees the TCP peer address, so behind a reverse proxy all clients share the proxy's limit. Trusting `X-Forwarded-For` is not built)
 
 ### Auth & multi-tenancy
 - [x] Single-owner mode: one API key, vehicles under one owner (`TPT_RUC_API_KEY`, at least 32 characters, sent as a Bearer token and compared in constant time; the server refuses to start without it. Vehicles are not yet modelled server-side, so trips carry the vehicle fields directly)
-- [ ] Org mode: users, orgs, roles (admin/manager/driver) (users, roles, and vehicles with driver assignment are done. Orgs are not built: there is one organisation. Admins create users with `POST /v1/users`, and each user gets a token shown once. Drivers see and delete only their own trips and cannot run reports. Managers see every trip and run reports. Admins also manage users, and deleting a user deletes their trips. Orgs are not built: there is one organisation)
-- [ ] Password hashing (argon2) and session/token strategy (users sign in with random 256-bit tokens, and only their SHA-256 hashes are stored. Passwords and sessions are not built. Tokens cannot be rotated yet, so a lost token means deleting the user and creating another)
+- [ ] Org mode: users, orgs, roles (admin/manager/driver) (Tenancy default chosen 2026-10-22: one organisation per server, which is the state built. There is no documented recommendation on this, so it is a default, not an endorsed design. Multi-organisation tenancy is deferred. users, roles, and vehicles with driver assignment are done. Orgs are not built: there is one organisation. Admins create users with `POST /v1/users`, and each user gets a token shown once. Drivers see and delete only their own trips and cannot run reports. Managers see every trip and run reports. Admins also manage users, and deleting a user deletes their trips. Orgs are not built: there is one organisation) Still open after this round. Tenancy is a design decision for the owner: whether the server is one organisation or hosts several, and whether the owner key sees every organisation.
+- [x] Password hashing (argon2) and session/token strategy (Argon2id passwords in `passwords.rs`. Browser sign-in at `POST /v1/sessions` issues a 12-hour session token, ended by `DELETE /v1/sessions` or by a password change (`PUT /v1/users/{id}/password`). User tokens are rotatable with `POST /v1/users/{id}/token`. Only SHA-256 hashes of tokens are stored. Sessions cannot be rotated yet, only signed out or expired)
 - [x] Per-device ed25519 key registration and revocation (`POST /v1/devices` registers a key owned by a user, using ed25519-dalek, BSD-3-Clause. Revoked devices are refused)
 - [x] Signature verification of sync payloads; replay protection (nonce/sequence) (signed uploads carry a per-device sequence that must rise, so replays and older sequences are refused. Owner and user tokens still work unsigned)
-- [ ] Mode switch and docs for upgrading single-owner → org (the owner key and users already coexist. A written upgrade guide is not yet done)
+- [ ] Mode switch and docs for upgrading single-owner → org (the owner key and users already coexist. A written upgrade guide is not yet done) Still open: with orgs not built, there is no org mode to switch to yet.
 
 ### Ingest & fleet
 - [ ] Ingest endpoints (REST) for summaries and batched trips; optional WebSocket (`POST /v1/trips` and `GET /v1/trips` are done; WebSocket is not built, and that is deliberate for now)
-- [ ] **Summaries-only by default**; explicit opt-in endpoint for raw GPS points (only summaries can be sent, so the default holds; the raw GPS opt-in endpoint is not built)
+- [x] **Summaries-only by default**; explicit opt-in endpoint for raw GPS points (off unless `TPT_RUC_ALLOW_RAW_GPS=true`. `POST /v1/gps/points` stores a validated batch per user, and deleting the user deletes their points. Gap: `GET /v1/export` does not include raw points yet, and the privacy statement says so)
 - [x] Idempotent uploads and conflict handling (a resent trip with the same values is `unchanged`; the same ID with different values is a `409` and the whole batch is refused, atomically)
 - [x] Vehicles, drivers, device assignment (`/v1/vehicles`, with drivers restricted to vehicles assigned to them. Trips may name a `vehicle_id`)
 - [x] Fleet aggregation: per vehicle/month/org, liability, licence expiry alerts (`GET /v1/fleet/summary` groups by vehicle, type and month. `GET /v1/alerts` lists heavy vehicles with licences expiring soon, using only the core's expiry rules. Grouping by org waits for orgs)
@@ -213,7 +213,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 
 ### Deployment
 - [x] Multi-stage Dockerfile (small image, non-root, healthcheck) (`Dockerfile`: a Rust build stage and a Debian slim runtime that runs as user 10001. The health check is `tpt-ruc-backend healthcheck`, so no `curl` is needed. Not yet built in a Docker environment, only its build command has been checked outside Docker)
-- [ ] Multi-arch images (amd64 + arm64 for Raspberry Pi/NAS), published to ghcr.io from CI
+- [ ] Multi-arch images (amd64 + arm64 for Raspberry Pi/NAS), published to ghcr.io from CI (`.github/workflows/docker-publish.yml` is written, for amd64 and arm64, and pushes on master and tags. It has not run on GitHub yet)
 - [ ] `docker-compose.yml` (SQLite default; Postgres profile) with the `./data` volume (`docker-compose.yml` runs with SQLite on a named volume, `tpt-ruc-data`, because a bind-mounted host folder is not writable by the container's user. The Postgres profile is not built)
 - [x] Optional bundled PWA static files served by the backend (`TPT_RUC_PWA_DIR`, off by default. `static_files.rs` refuses encoded, dot and `..` paths and any file that resolves outside the folder. Static GETs are exempt from the API rate limit. Covered by API tests, not run in a browser)
 - [x] Backups guidance, TLS/reverse-proxy guide (Caddy/Traefik example) (`docs/guides/reverse-proxy-and-backups.md`. The Caddy example is the recommended one. The Traefik example is an untested sketch. The backup commands need the volume's full name, which Docker prefixes with the project folder)
@@ -236,7 +236,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [ ] Thermal/vibration/automotive voltage testing
 - [ ] Rev B fixes
 - [ ] Enclosure design (3D STLs), mounting and cable strain relief (BLOCKED: no CAD tool here)
-- [ ] Hardware licence decision for designs (e.g. CERN-OHL-P or CC-BY, compatible with the project's permissive stance) (options compared in `docs/hardware-licence-options.md`, with a recommendation for you to decide. The licence texts were not checked against their official sources)
+- [x] Hardware licence decision for designs (decided 2026-10-22: CERN-OHL-P-2.0, as recommended in `docs/hardware-licence-options.md`. `hardware/LICENSE.md` points to the official text. The full text is still to be copied in verbatim before the first hardware release, and was not retrieved in this environment)
 - [x] Assembly/build instructions in `docs/` (bench build in `docs/guides/hardware-build.md`, untested; custom PCB build in `docs/pcb-build.md` is BLOCKED until the schematic exists)
 
 ### Mobile bindings (no MPL tooling)
@@ -258,7 +258,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Define accuracy test protocol and test route evidence (`docs/nzta/accuracy-test-protocol.md`, a protocol only)
 - [ ] Collect test results and calibration evidence
 - [ ] Draft the application pack and technical documentation
-- [ ] Decide whether to apply (outside the open-source stance), and who owns the application (options memo in `docs/nzta/`, no recommendation to file; decision is yours)
+- [ ] Decide whether to apply (outside the open-source stance), and who owns the application (options memo in `docs/nzta/`, no recommendation to file, so this stays with the owner; decision is yours)
 - [ ] Keep disclaimers in README/UI until approval is granted
 
 ## Phase 6 – Release & Ongoing

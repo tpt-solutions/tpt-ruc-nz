@@ -1,6 +1,9 @@
 [package]
 name = "tpt-ruc-ffi-android"
 description = "Kotlin bindings for tpt-ruc-core (liability and billable kilometres) via the jni crate"
+readme = "README.md"
+keywords = ["jni", "kotlin", "android", "road-user-charges", "ffi"]
+categories = ["development-tools::ffi", "api-bindings"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true

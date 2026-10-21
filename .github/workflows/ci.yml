@@ -96,7 +96,7 @@ jobs:
           cache: npm
           cache-dependency-path: pwa/package-lock.json
       - run: cargo install wasm-pack --locked
-      - run: sh scripts/build-wasm.sh
+      - run: sh ../scripts/build-wasm.sh
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check

@@ -1,6 +1,9 @@
 [package]
 name = "tpt-ruc-wasm"
 description = "wasm-bindgen bindings for tpt-ruc-core, consumed by the PWA"
+readme = "README.md"
+keywords = ["wasm", "wasm-bindgen", "nmea", "road-user-charges", "nzta"]
+categories = ["wasm", "api-bindings"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -7,7 +7,9 @@
 //! has full access, which keeps single-owner self-hosting unchanged. Every other
 //! caller is a user with a token issued when the user was created. Only a
 //! SHA-256 hash of each token is stored. Tokens carry 256 random bits, so a
-//! fast hash is enough here. Passwords would need a slow hash instead.
+//! fast hash is enough here. A browser sign-in with a password swaps for a
+//! session token, which is checked the same way (see [`crate::sessions`]).
+//! Passwords themselves are Argon2 hashed (see [`crate::passwords`]).
 
 use http::header::AUTHORIZATION;
 use http::HeaderMap;
@@ -114,9 +116,23 @@ pub async fn resolve(state: &AppState, headers: &HeaderMap) -> Result<Principal,
     let found = state
         .db
         .run(move |connection| {
-            Ok(connection
+            // A user token, or else an unexpired session token. Expiry is compared in SQL.
+            let user_token = connection
                 .query_row(
                     "SELECT id, role FROM users WHERE token_hash = ?1",
+                    params![hash],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )
+                .optional()?;
+            if user_token.is_some() {
+                return Ok(user_token);
+            }
+            Ok(connection
+                .query_row(
+                    "SELECT users.id, users.role FROM sessions
+                     JOIN users ON users.id = sessions.user_id
+                     WHERE sessions.token_hash = ?1
+                       AND sessions.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')",
                     params![hash],
                     |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
                 )
@@ -134,7 +150,7 @@ pub async fn resolve(state: &AppState, headers: &HeaderMap) -> Result<Principal,
 }
 
 /// The token from `Authorization: Bearer <token>`, if the header has that form.
-fn bearer(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn bearer(headers: &HeaderMap) -> Option<&str> {
     headers
         .get(AUTHORIZATION)
         .and_then(|value| value.to_str().ok())

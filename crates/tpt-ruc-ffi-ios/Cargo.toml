@@ -1,6 +1,9 @@
 [package]
 name = "tpt-ruc-ffi-ios"
 description = "Swift bindings for tpt-ruc-core (liability and billable kilometres) via swift-bridge"
+readme = "README.md"
+keywords = ["swift", "ios", "swift-bridge", "road-user-charges", "ffi"]
+categories = ["development-tools::ffi", "api-bindings"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -11,12 +11,15 @@ use tpt_ruc_core::{Config, Tracker};
 
 use crate::queue::SegmentQueue;
 use crate::GnssReader;
+use tpt_ruc_core::Config as TrackerConfig;
 
 /// Records distance from a GNSS byte stream, and queues finished segments.
 #[derive(Debug, Clone, Copy)]
 pub struct Recorder<const N: usize> {
     reader: GnssReader,
     tracker: Tracker,
+    /// Distance from trackers replaced by [`Recorder::apply_config`].
+    total_base_m: f64,
     queue: SegmentQueue<N>,
     rejected: u32,
 }
@@ -27,9 +30,26 @@ impl<const N: usize> Recorder<N> {
         Self {
             reader: GnssReader::new(),
             tracker: Tracker::new(Config::default()),
+            total_base_m: 0.0,
             queue: SegmentQueue::new(),
             rejected: 0,
         }
+    }
+
+    /// Replaces the filter thresholds. The open segment is closed first, so
+    /// distance measured under the old thresholds is never merged with new
+    /// distance. The total is kept.
+    pub fn apply_config(&mut self, config: TrackerConfig) {
+        self.total_base_m += self.tracker.total_m();
+        if let Some(open) = self.tracker.finish() {
+            self.queue.push(open);
+        }
+        self.tracker = Tracker::new(config);
+    }
+
+    /// The queue of finished segments, for draining into flash.
+    pub fn queue_mut(&mut self) -> &mut SegmentQueue<N> {
+        &mut self.queue
     }
 
     /// Feeds one byte from the GNSS UART.
@@ -66,7 +86,7 @@ impl<const N: usize> Recorder<N> {
 
     /// Total distance accepted since the recorder was created, in metres.
     pub fn total_m(&self) -> f64 {
-        self.tracker.total_m()
+        self.total_base_m + self.tracker.total_m()
     }
 
     /// Fixes the filters rejected, since the recorder was created.
@@ -164,5 +184,34 @@ mod tests {
         let mut queue = recorder.finish();
         let segment: Segment = queue.pop().expect("open segment should be queued");
         assert!(segment.distance_m > 0.0);
+    }
+
+    #[test]
+    fn applying_a_config_closes_the_open_segment_and_keeps_the_total() {
+        let mut recorder: Recorder<8> = Recorder::new();
+        for i in 0..5u32 {
+            feed(&mut recorder, &pair(10.0 * f64::from(i), i, 19.4));
+        }
+        let before = recorder.total_m();
+        assert!(before > 0.0);
+
+        recorder.apply_config(TrackerConfig {
+            max_hdop: 2.5,
+            ..TrackerConfig::default()
+        });
+        assert_eq!(
+            recorder.total_m(),
+            before,
+            "changing config adds no distance"
+        );
+        assert_eq!(recorder.queue_mut().len(), 1, "the open segment is closed");
+
+        for i in 5..10u32 {
+            feed(&mut recorder, &pair(10.0 * f64::from(i), i, 19.4));
+        }
+        assert!(
+            recorder.total_m() > before,
+            "recording continues under the new config"
+        );
     }
 }

@@ -69,6 +69,7 @@ To limit abuse, the server counts requests per client IP address in memory, for 
 
 ### What is not done
 
+- **Raw GPS points are off by default.** The server stores a position only if the owner sets `TPT_RUC_ALLOW_RAW_GPS=true`, and then only for a user who uploads points to `POST /v1/gps/points`. Deleting that user deletes their points. The data export (`GET /v1/export`) does not include raw points yet, so an export request does not cover them. Deleting the user does.
 - **Retention is off by default.** Trips stay until someone deletes them. If you set `TPT_RUC_RETENTION_DAYS`, the server deletes trips older than that many days, for every user, checked every hour. It logs only how many trips it removed.
 - **No encryption at rest.** The database file is not encrypted. Protect the computer and its backups.
 - **No encryption in transit on its own.** The server speaks plain HTTP. Put it behind HTTPS before any device other than the server's own computer reaches it.

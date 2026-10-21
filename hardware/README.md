@@ -44,4 +44,4 @@ See [`bench-bom.csv`](bench-bom.csv). Prices are left blank, to be quoted by the
 - [ ] Measure the real sentence rate and cold-start time at 9600 baud and 1 Hz.
 - [ ] Build the breadboard wiring and capture a log of GGA and RMC from the receiver.
 - [ ] Write the esp-hal UART reader, feeding `tpt-ruc-firmware::GnssReader`.
-- [ ] Decide the flash log format (LittleFS or log-structured) and the BLE GATT layout. Both are still open.
+- [x] Decide the flash log format and the BLE GATT layout. Decided: the log-structured sector log, as built in `firmware/` (`flash.rs`), and GATT layout version 1 in `docs/ble-design.md`.

@@ -1,6 +1,9 @@
 [package]
 name = "tpt-ruc-core"
 description = "Pure Rust RUC maths, NMEA parsing and distance logic for tpt-ruc-nz (no_std compatible)"
+readme = "README.md"
+keywords = ["nmea", "gnss", "gps", "road-user-charges", "nzta"]
+categories = ["science", "parser-implementations", "no-std"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true

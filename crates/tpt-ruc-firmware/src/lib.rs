@@ -13,11 +13,13 @@
 
 pub mod control;
 pub mod flash;
+pub mod gatt;
 pub mod identity;
 pub mod log;
 pub mod payload;
 pub mod queue;
 pub mod recorder;
+pub mod session;
 pub mod transfer;
 
 pub use log::{LogError, LogStorage, SegmentLog};

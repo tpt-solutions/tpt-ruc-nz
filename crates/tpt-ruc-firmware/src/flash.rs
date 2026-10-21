@@ -142,6 +142,25 @@ impl<S: SectorStorage> SectorLog<S> {
         Ok(true)
     }
 
+    /// Number of segments in the oldest sector that holds data. Zero when the log is empty.
+    pub fn oldest_sector_segments(&self) -> usize {
+        let Some((_, sector)) = next_in_order(&self.storage, None) else {
+            return 0;
+        };
+        let mut offset = SECTOR_HEADER_LEN;
+        let mut count = 0;
+        while let Some((_, next)) = read_record(&self.storage, sector, offset) {
+            count += 1;
+            offset = next;
+        }
+        count
+    }
+
+    /// Gives back the storage, for example to reopen the log after a simulated reset.
+    pub fn into_storage(self) -> S {
+        self.storage
+    }
+
     /// Number of sectors that hold data.
     pub fn live_sectors(&self) -> usize {
         (0..self.storage.sector_count())
@@ -269,7 +288,7 @@ fn tail_is_erased<S: SectorStorage>(storage: &S, sector: usize, from: usize) -> 
 }
 
 /// Encodes one segment as a complete record. Returns the buffer and the number of bytes used.
-fn encode_record(
+pub(crate) fn encode_record(
     segment: &Segment,
 ) -> Result<([u8; log::HEADER_LEN + log::MAX_PAYLOAD], usize), LogError> {
     let mut payload = [0u8; log::MAX_PAYLOAD];
@@ -283,22 +302,22 @@ fn encode_record(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// RAM-backed sectors that start erased, as flash does. It can cut power
     /// after a set number of operations. The operation that is cut writes only
     /// part of its data, and every later operation fails.
-    struct RamSectors {
-        bytes: std::vec::Vec<u8>,
+    pub(crate) struct RamSectors {
+        pub(crate) bytes: std::vec::Vec<u8>,
         sector_size: usize,
-        ops_left: usize,
-        dead: bool,
-        erases: std::vec::Vec<u32>,
+        pub(crate) ops_left: usize,
+        pub(crate) dead: bool,
+        pub(crate) erases: std::vec::Vec<u32>,
     }
 
     impl RamSectors {
-        fn new(sectors: usize, sector_size: usize) -> Self {
+        pub(crate) fn new(sectors: usize, sector_size: usize) -> Self {
             Self {
                 bytes: std::vec![0xff; sectors * sector_size],
                 sector_size,

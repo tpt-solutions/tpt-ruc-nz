@@ -71,25 +71,26 @@ pub fn chunk_data_len(mtu: u16) -> Option<usize> {
         .filter(|len| *len > 0)
 }
 
-/// Writes the chunks of a transfer, one notification at a time.
+/// Where a transfer has got to, and the rules for writing its next chunk.
 ///
-/// Call [`ChunkEncoder::next_chunk`] until it returns `Ok(None)`. A failed call
-/// changes nothing, so the caller can retry it with a larger buffer.
-#[derive(Debug)]
-pub struct ChunkEncoder<'a> {
-    records: &'a [&'a [u8]],
+/// The cursor does not own the records. Each call is given the records of the
+/// current batch, so a session can send a log in batches without copying it.
+/// Sequence numbers keep counting across batches.
+#[derive(Debug, Clone, Copy)]
+pub struct ChunkCursor {
+    /// Index of the record being sent, within the current batch.
     record: usize,
+    /// Bytes of that record already sent.
     offset: usize,
     seq: u16,
     data_len: usize,
 }
 
-impl<'a> ChunkEncoder<'a> {
-    /// Starts a transfer of `records`, one record per segment, oldest first.
-    pub fn new(records: &'a [&'a [u8]], mtu: u16) -> Result<Self, TransferError> {
+impl ChunkCursor {
+    /// Starts a transfer at `mtu`.
+    pub fn new(mtu: u16) -> Result<Self, TransferError> {
         let data_len = chunk_data_len(mtu).ok_or(TransferError::MtuTooSmall)?;
         Ok(Self {
-            records,
             record: 0,
             offset: 0,
             seq: 0,
@@ -97,10 +98,28 @@ impl<'a> ChunkEncoder<'a> {
         })
     }
 
-    /// Writes the next chunk into `out`. Returns its length, or `None` when
-    /// the transfer is complete.
-    pub fn next_chunk(&mut self, out: &mut [u8]) -> Result<Option<usize>, TransferError> {
-        let Some(record) = self.records.get(self.record) else {
+    /// Records of the current batch that have been sent in full.
+    pub fn completed(&self) -> usize {
+        self.record
+    }
+
+    /// Moves on to a new batch. Call this after the previous batch is fully sent.
+    pub fn restart_batch(&mut self) {
+        self.record = 0;
+        self.offset = 0;
+    }
+
+    /// Writes the next chunk of `records` into `out`. Returns its length, or
+    /// `None` when every record in the batch has been sent. `last_batch` says
+    /// whether any records follow this batch, and sets the transfer-end flag.
+    /// A failed call changes nothing, so the caller can retry it with a larger buffer.
+    pub fn next_chunk(
+        &mut self,
+        records: &[&[u8]],
+        last_batch: bool,
+        out: &mut [u8],
+    ) -> Result<Option<usize>, TransferError> {
+        let Some(record) = records.get(self.record) else {
             return Ok(None);
         };
         let take = self.data_len.min(record.len() - self.offset);
@@ -110,7 +129,7 @@ impl<'a> ChunkEncoder<'a> {
         }
 
         let last_in_segment = self.offset + take == record.len();
-        let last_in_transfer = last_in_segment && self.record + 1 == self.records.len();
+        let last_in_transfer = last_in_segment && last_batch && self.record + 1 == records.len();
         if last_in_transfer {
             // Nothing follows, so the sequence number need not advance further.
         } else if self.seq == u16::MAX {
@@ -135,6 +154,32 @@ impl<'a> ChunkEncoder<'a> {
             self.offset = 0;
         }
         Ok(Some(total))
+    }
+}
+
+/// Writes the chunks of a transfer, one notification at a time.
+///
+/// Call [`ChunkEncoder::next_chunk`] until it returns `Ok(None)`. A failed call
+/// changes nothing, so the caller can retry it with a larger buffer.
+#[derive(Debug)]
+pub struct ChunkEncoder<'a> {
+    records: &'a [&'a [u8]],
+    cursor: ChunkCursor,
+}
+
+impl<'a> ChunkEncoder<'a> {
+    /// Starts a transfer of `records`, one record per segment, oldest first.
+    pub fn new(records: &'a [&'a [u8]], mtu: u16) -> Result<Self, TransferError> {
+        Ok(Self {
+            records,
+            cursor: ChunkCursor::new(mtu)?,
+        })
+    }
+
+    /// Writes the next chunk into `out`. Returns its length, or `None` when
+    /// the transfer is complete.
+    pub fn next_chunk(&mut self, out: &mut [u8]) -> Result<Option<usize>, TransferError> {
+        self.cursor.next_chunk(self.records, true, out)
     }
 }
 

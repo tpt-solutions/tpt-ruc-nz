@@ -71,6 +71,8 @@ The server also reads these variables. The Docker image already sets them, so yo
 | `TPT_RUC_RETENTION_DAYS` | off | off | Optional. Delete trips older than this many days, for every user. Checked every hour. |
 | `TPT_RUC_ERUC_PROVIDER` | off | off | Optional. Name of an eRUC push provider. The only one so far is `dry-run`, which sends nothing. See [eRUC export format](../eruc-export.md). |
 | `TPT_RUC_PWA_DIR` | off | off | Optional. A folder with the built web app (`pwa/out`). When set, the server serves the app on its own address. |
+| `TPT_RUC_ALLOW_RAW_GPS` | off | off | Optional. Set to `true` to let users upload raw GPS points to `POST /v1/gps/points`. Off means summaries only, and the server refuses raw points. |
+| `TPT_RUC_CONFIG` | none | none | Optional. Path to a TOML file holding the same settings, keyed by their variable names. An environment variable overrides the file. |
 
 ## Users and roles
 

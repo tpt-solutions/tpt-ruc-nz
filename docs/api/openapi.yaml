@@ -593,6 +593,128 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /v1/sessions:
+    post:
+      tags: [users]
+      summary: Sign in with a password
+      description: |
+        No token needed. Takes a user ID and password and returns a session token
+        that lasts 12 hours. The token is shown once. Failed sign-ins count
+        towards the per-client limit. Unknown users and users without a password
+        get the same answer as a wrong password.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, password]
+              properties:
+                user_id: { type: string }
+                password: { type: string }
+      responses:
+        "201":
+          description: The session token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expires_at: { type: string }
+                  user:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      role: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [users]
+      summary: Sign out
+      description: Ends the session named by the bearer token. Other tokens are not affected.
+      responses:
+        "200":
+          description: Whether a session was ended.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signed_out: { type: boolean }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/users/{id}/password:
+    parameters:
+      - { $ref: "#/components/parameters/UserId" }
+    put:
+      tags: [users]
+      summary: Set a user's password
+      description: |
+        Admins only. Passwords are 12 to 256 bytes. Every session the user holds
+        ends at once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        "200":
+          description: The password is set.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  password_set: { type: boolean }
+                  sessions_ended: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/gps/points:
+    post:
+      tags: [trips]
+      summary: Upload raw GPS points
+      description: |
+        Only when the server has `TPT_RUC_ALLOW_RAW_GPS=true`, and only for a
+        signed-in user (not the owner key). Up to 1000 points per request. The
+        whole batch is refused if any point is invalid.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points:
+                  type: array
+                  items:
+                    type: object
+                    required: [recorded_at, lat, lon]
+                    properties:
+                      recorded_at: { type: string, description: "UTC, such as 2026-10-22T09:30:00Z" }
+                      lat: { type: number, minimum: -90, maximum: 90 }
+                      lon: { type: number, minimum: -180, maximum: 180 }
+                      speed_kmh: { type: number, minimum: 0, maximum: 400 }
+      responses:
+        "201":
+          description: The number of points stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stored: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /v1/devices:
     get:
       tags: [devices]

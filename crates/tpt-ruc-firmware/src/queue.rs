@@ -9,6 +9,8 @@
 
 use tpt_ruc_core::Segment;
 
+use crate::flash::{SectorLog, SectorStorage};
+
 /// Ring buffer of at most `N` segments.
 #[derive(Debug, Clone, Copy)]
 pub struct SegmentQueue<const N: usize> {
@@ -62,6 +64,14 @@ impl<const N: usize> SegmentQueue<N> {
         segment
     }
 
+    /// The oldest segment, left in the queue.
+    pub fn front(&self) -> Option<Segment> {
+        if self.len == 0 {
+            return None;
+        }
+        self.items[self.head]
+    }
+
     /// Number of segments waiting.
     pub fn len(&self) -> usize {
         self.len
@@ -78,9 +88,29 @@ impl<const N: usize> SegmentQueue<N> {
     }
 }
 
+/// Moves queued segments into the flash log, oldest first, and returns how many moved.
+///
+/// A segment the log refuses stays at the front of the queue, so nothing is
+/// lost while flash is full or failing. Call this again once space is freed.
+pub fn drain_into<const N: usize, S: SectorStorage>(
+    queue: &mut SegmentQueue<N>,
+    log: &mut SectorLog<S>,
+) -> usize {
+    let mut moved = 0;
+    while let Some(segment) = queue.front() {
+        if log.append(&segment).is_err() {
+            break;
+        }
+        queue.pop();
+        moved += 1;
+    }
+    moved
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::flash::tests::RamSectors;
 
     fn segment(start_ms: u64) -> Segment {
         Segment {
@@ -88,6 +118,35 @@ mod tests {
             end_ms: start_ms + 1,
             distance_m: 1.0,
         }
+    }
+
+    #[test]
+    fn drain_moves_segments_to_flash_and_keeps_the_rest_while_full() {
+        // A 32-byte sector leaves 23 bytes after its header, enough for one
+        // 19-byte record and no more, so the second segment has nowhere to go.
+        let mut log = SectorLog::open(RamSectors::new(1, 32));
+        let mut queue: SegmentQueue<4> = SegmentQueue::new();
+        for i in 1..=3 {
+            queue.push(segment(i));
+        }
+
+        assert_eq!(drain_into(&mut queue, &mut log), 1);
+        assert_eq!(queue.len(), 2, "refused segments stay queued");
+        assert_eq!(queue.front().map(|s| s.start_ms), Some(2));
+
+        // Retiring the stored sector makes room, and the queue drains in order.
+        assert!(log.retire_oldest().unwrap());
+        assert_eq!(drain_into(&mut queue, &mut log), 1);
+        assert_eq!(queue.front().map(|s| s.start_ms), Some(3));
+        assert_eq!(log.oldest_sector_segments(), 1);
+    }
+
+    #[test]
+    fn drain_into_an_empty_queue_moves_nothing() {
+        let mut log = SectorLog::open(RamSectors::new(2, 128));
+        let mut queue: SegmentQueue<2> = SegmentQueue::new();
+        assert_eq!(drain_into(&mut queue, &mut log), 0);
+        assert_eq!(log.oldest_sector_segments(), 0);
     }
 
     #[test]

@@ -477,6 +477,7 @@ mod tests {
             limiter: RateLimiter::default(),
             pwa_dir: None,
             eruc_push: push,
+            allow_raw_gps: false,
         }
     }
 

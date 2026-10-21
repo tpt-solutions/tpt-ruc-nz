@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `tpt-ruc-backend`: browser sign-in. `POST /v1/sessions` takes a user ID and password and returns a session token that lasts 12 hours. `DELETE /v1/sessions` signs out. Passwords are Argon2id hashed, and `PUT /v1/users/{id}/password` (admins only) sets one and ends that user's sessions.
+- `tpt-ruc-backend`: optional raw GPS upload at `POST /v1/gps/points`, off unless `TPT_RUC_ALLOW_RAW_GPS=true`. A batch is refused whole if any point is invalid. Deleting a user deletes their points.
+- `tpt-ruc-backend`: an optional TOML configuration file named by `TPT_RUC_CONFIG`. Environment variables override it.
+- `tpt-ruc-firmware`: control-write dispatch that applies accepted settings, a queue drain into the flash sector log, a transfer session that frees sectors only after acknowledgement, and a seed-source trait for identity. Host-tested only.
 - `tpt-ruc-backend`: generic eRUC export at `GET /v1/eruc/export` (`generic-json` and `generic-csv`, manager-only), an `ErucProvider` adapter trait, and the format in `docs/eruc-export.md`. No provider is pushed to yet.
 - `tpt-ruc-backend`: optional serving of the built web app from `TPT_RUC_PWA_DIR`, with path checks and static assets exempt from the API rate limit.
 - `tpt-ruc-backend`: an optional eRUC push queue, off unless `TPT_RUC_ERUC_PROVIDER` is set. Jobs are created, listed and inspected under `/v1/eruc/jobs`, with retries, a per-job audit log, and recovery after a restart. The only provider is the `dry-run` placeholder, which sends nothing.

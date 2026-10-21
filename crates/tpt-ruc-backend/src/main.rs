@@ -93,6 +93,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         limiter: RateLimiter::default(),
         pwa_dir: config.pwa_dir,
         eruc_push: eruc_push.clone(),
+        allow_raw_gps: config.allow_raw_gps,
     });
 
     if let Some(provider) = eruc_push {

@@ -1,6 +1,9 @@
 [package]
 name = "tpt-ruc-firmware"
 description = "Device logic for the tpt-ruc-nz tracker: GNSS framing and fix merging, free of hardware code"
+readme = "README.md"
+keywords = ["gnss", "nmea", "esp32", "embedded", "road-user-charges"]
+categories = ["embedded", "no-std"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -31,6 +31,7 @@ fn state() -> AppState {
         limiter: RateLimiter::default(),
         pwa_dir: None,
         eruc_push: None,
+        allow_raw_gps: false,
     }
 }
 
@@ -1805,6 +1806,7 @@ async fn push_jobs_need_a_configured_provider_and_a_manager() {
 
     let state = AppState {
         eruc_push: Some(Arc::new(DryRun)),
+        allow_raw_gps: false,
         ..state()
     };
     let (_, driver) = create_user(&state, "Aroha", "driver").await;
@@ -1857,4 +1859,321 @@ async fn push_jobs_need_a_configured_provider_and_a_manager() {
     let wrong = json!({ "provider": "other", "from": "2026-10-01", "to": "2026-10-31" });
     let (status, _) = send_as(&state, &manager, Method::POST, "/v1/eruc/jobs", Some(wrong)).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+/// Sets a user's password as the owner. Returns the status and the response body.
+async fn set_password(state: &AppState, id: &str, password: &str) -> (StatusCode, Value) {
+    send(
+        state,
+        Method::PUT,
+        &format!("/v1/users/{id}/password"),
+        Some(json!({ "password": password })),
+        true,
+    )
+    .await
+}
+
+/// Signs a user in with a password. Returns the status and the response body.
+async fn sign_in(state: &AppState, id: &str, password: &str) -> (StatusCode, Value) {
+    send(
+        state,
+        Method::POST,
+        "/v1/sessions",
+        Some(json!({ "user_id": id, "password": password })),
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn a_user_signs_in_with_a_password_and_signs_out() {
+    let state = state();
+    let (id, _) = create_user(&state, "Aroha", "driver").await;
+    let (status, _) = send(
+        &state,
+        Method::PUT,
+        &format!("/v1/users/{id}/password"),
+        Some(json!({ "password": "a long enough password" })),
+        true,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, body) = sign_in(&state, &id, "a long enough password").await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let session = body["token"].as_str().unwrap().to_owned();
+    assert!(session.starts_with("tps_"));
+    assert_eq!(body["user"]["role"], "driver");
+    assert!(body["expires_at"].as_str().unwrap().ends_with('Z'));
+
+    let (status, _) = send_as(&state, &session, Method::GET, "/v1/trips", None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, body) = send_as(&state, &session, Method::DELETE, "/v1/sessions", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["signed_out"], true);
+    let (status, _) = send_as(&state, &session, Method::GET, "/v1/trips", None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn wrong_passwords_unknown_users_and_users_without_a_password_all_look_the_same() {
+    let state = state();
+    let (id, _) = create_user(&state, "Aroha", "driver").await;
+    let (no_password, no_password_body) = sign_in(&state, &id, "a long enough password").await;
+    let (unknown, unknown_body) = sign_in(&state, "u_missing", "a long enough password").await;
+    assert_eq!(no_password, StatusCode::UNAUTHORIZED);
+    assert_eq!(unknown, StatusCode::UNAUTHORIZED);
+    assert_eq!(no_password_body, unknown_body);
+
+    send(
+        &state,
+        Method::PUT,
+        &format!("/v1/users/{id}/password"),
+        Some(json!({ "password": "a long enough password" })),
+        true,
+    )
+    .await;
+    let (wrong, _) = sign_in(&state, &id, "not the right password").await;
+    assert_eq!(wrong, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn sessions_expire_on_their_own() {
+    let state = state();
+    let (id, _) = create_user(&state, "Aroha", "driver").await;
+    send(
+        &state,
+        Method::PUT,
+        &format!("/v1/users/{id}/password"),
+        Some(json!({ "password": "a long enough password" })),
+        true,
+    )
+    .await;
+    let (_, body) = sign_in(&state, &id, "a long enough password").await;
+    let session = body["token"].as_str().unwrap().to_owned();
+
+    state
+        .db
+        .run(|connection| {
+            connection.execute(
+                "UPDATE sessions SET expires_at = '2000-01-01T00:00:00.000Z'",
+                [],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+
+    let (status, _) = send_as(&state, &session, Method::GET, "/v1/trips", None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn changing_a_password_ends_every_session_of_that_user() {
+    let state = state();
+    let (id, _) = create_user(&state, "Aroha", "driver").await;
+    set_password(&state, &id, "a long enough password").await;
+    let (_, first) = sign_in(&state, &id, "a long enough password").await;
+    let (_, second) = sign_in(&state, &id, "a long enough password").await;
+    let first = first["token"].as_str().unwrap().to_owned();
+    let second = second["token"].as_str().unwrap().to_owned();
+
+    let (status, body) = set_password(&state, &id, "a different password").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["sessions_ended"], 2);
+
+    for session in [&first, &second] {
+        let (status, _) = send_as(&state, session, Method::GET, "/v1/trips", None).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+    let (status, _) = sign_in(&state, &id, "a different password").await;
+    assert_eq!(status, StatusCode::CREATED);
+}
+
+#[tokio::test]
+async fn only_admins_set_passwords_and_short_ones_are_refused() {
+    let state = state();
+    let (driver_id, driver_token) = create_user(&state, "Aroha", "driver").await;
+    let (status, _) = send_as(
+        &state,
+        &driver_token,
+        Method::PUT,
+        &format!("/v1/users/{driver_id}/password"),
+        Some(json!({ "password": "a long enough password" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    let (status, _) = send(
+        &state,
+        Method::PUT,
+        &format!("/v1/users/{driver_id}/password"),
+        Some(json!({ "password": "short" })),
+        true,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let (status, _) = send(
+        &state,
+        Method::PUT,
+        "/v1/users/u_missing/password",
+        Some(json!({ "password": "a long enough password" })),
+        true,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn session_endpoints_refuse_the_wrong_method_and_missing_token() {
+    let state = state();
+    let (status, _) = send(&state, Method::GET, "/v1/sessions", None, false).await;
+    assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
+    let (status, _) = send(&state, Method::DELETE, "/v1/sessions", None, false).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+/// A server state with raw GPS uploads switched on or off.
+fn state_with_raw_gps(allow: bool) -> AppState {
+    AppState {
+        allow_raw_gps: allow,
+        ..state()
+    }
+}
+
+fn point(recorded_at: &str, lat: f64) -> Value {
+    json!({ "recorded_at": recorded_at, "lat": lat, "lon": 174.8, "speed_kmh": 50.0 })
+}
+
+#[tokio::test]
+async fn raw_gps_is_refused_unless_the_server_opts_in() {
+    let state = state_with_raw_gps(false);
+    let (_, token) = create_user(&state, "Aroha", "driver").await;
+    let (status, _) = send_as(
+        &state,
+        &token,
+        Method::POST,
+        "/v1/gps/points",
+        Some(json!({ "points": [point("2026-10-22T09:30:00Z", -41.3)] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn a_user_stores_raw_points_and_the_owner_key_cannot() {
+    let state = state_with_raw_gps(true);
+    let (_, token) = create_user(&state, "Aroha", "driver").await;
+    let (status, body) = send_as(
+        &state,
+        &token,
+        Method::POST,
+        "/v1/gps/points",
+        Some(json!({ "points": [
+            point("2026-10-22T09:30:00Z", -41.3),
+            point("2026-10-22T09:30:01.500Z", -41.4),
+        ] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    assert_eq!(body["stored"], 2);
+
+    let (status, _) = send(
+        &state,
+        Method::POST,
+        "/v1/gps/points",
+        Some(json!({ "points": [point("2026-10-22T09:30:00Z", -41.3)] })),
+        true,
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn one_bad_point_stores_nothing_from_the_batch() {
+    let state = state_with_raw_gps(true);
+    let (_, token) = create_user(&state, "Aroha", "driver").await;
+    let (status, body) = send_as(
+        &state,
+        &token,
+        Method::POST,
+        "/v1/gps/points",
+        Some(json!({ "points": [
+            point("2026-10-22T09:30:00Z", -41.3),
+            point("2026-10-22T09:30:01Z", 95.0),
+        ] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert!(body["error"].as_str().unwrap().contains("point 1"));
+
+    let count: i64 = state
+        .db
+        .run(|connection| {
+            Ok(connection.query_row("SELECT COUNT(*) FROM raw_points", [], |row| row.get(0))?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+}
+
+#[tokio::test]
+async fn empty_and_oversized_batches_are_refused() {
+    let state = state_with_raw_gps(true);
+    let (_, token) = create_user(&state, "Aroha", "driver").await;
+    let (status, _) = send_as(
+        &state,
+        &token,
+        Method::POST,
+        "/v1/gps/points",
+        Some(json!({ "points": [] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let many: Vec<Value> = (0..=tpt_ruc_backend::gps::MAX_POINTS)
+        .map(|_| point("2026-10-22T09:30:00Z", -41.3))
+        .collect();
+    let (status, _) = send_as(
+        &state,
+        &token,
+        Method::POST,
+        "/v1/gps/points",
+        Some(json!({ "points": many })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn deleting_a_user_deletes_their_raw_points() {
+    let state = state_with_raw_gps(true);
+    let (id, token) = create_user(&state, "Aroha", "driver").await;
+    send_as(
+        &state,
+        &token,
+        Method::POST,
+        "/v1/gps/points",
+        Some(json!({ "points": [point("2026-10-22T09:30:00Z", -41.3)] })),
+    )
+    .await;
+    let (status, _) = send(
+        &state,
+        Method::DELETE,
+        &format!("/v1/users/{id}"),
+        None,
+        true,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let count: i64 = state
+        .db
+        .run(|connection| {
+            Ok(connection.query_row("SELECT COUNT(*) FROM raw_points", [], |row| row.get(0))?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
 }

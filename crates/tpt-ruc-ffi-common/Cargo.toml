@@ -1,6 +1,9 @@
 [package]
 name = "tpt-ruc-ffi-common"
 description = "Language-neutral wrapper around tpt-ruc-core for the iOS and Android bindings"
+readme = "README.md"
+keywords = ["ffi", "bindings", "road-user-charges", "nzta", "mobile"]
+categories = ["development-tools::ffi", "api-bindings"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true
