@@ -121,7 +121,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 
 ### Features
 - [x] Vehicle profiles (CRUD) (create, edit, list and delete, tested end to end)
-- [ ] Manual odometer entry (not started)
+- [x] Manual odometer entry (optional per vehicle, whole km, shown in the vehicle list; tested end to end)
 - [x] Basic RUC calculator UI (distance in, liability out) (home page; runs the wasm liability function, with an end-to-end test for a known charge)
 - [ ] Dashboard: current liability, distance until licence expiry
 - [ ] Trip history list and detail views (a manually entered trip list, with delete, is done and tested; detail views and GPS-recorded trips are still to do)

@@ -17,6 +17,7 @@ export function Vehicles() {
     const [rateType, setRateType] = useState<string>("1");
     const [grossKg, setGrossKg] = useState("2000");
     const [electric, setElectric] = useState(false);
+    const [odometer, setOdometer] = useState("");
     const [error, setError] = useState<string | null>(null);
 
     function refresh() {
@@ -33,6 +34,7 @@ export function Vehicles() {
         setRateType("1");
         setGrossKg("2000");
         setElectric(false);
+        setOdometer("");
     }
 
     function edit(vehicle: Vehicle) {
@@ -41,6 +43,7 @@ export function Vehicles() {
         setRateType(vehicle.rateType);
         setGrossKg(String(vehicle.grossKg));
         setElectric(vehicle.electric);
+        setOdometer(vehicle.odometerKm === undefined ? "" : String(vehicle.odometerKm));
         setError(null);
     }
 
@@ -55,12 +58,19 @@ export function Vehicles() {
             setError("Enter a whole-number weight above zero.");
             return;
         }
+        // The odometer is optional. When given, it must be a whole number of km, zero or more.
+        const odometerKm = odometer.trim() === "" ? undefined : Number(odometer);
+        if (odometerKm !== undefined && (!Number.isInteger(odometerKm) || odometerKm < 0)) {
+            setError("Enter the odometer as a whole number of kilometres, or leave it blank.");
+            return;
+        }
         const vehicle: Vehicle = {
             id: editingId ?? newId(),
             name: name.trim(),
             rateType,
             grossKg: kg,
             electric,
+            odometerKm,
         };
         putVehicle(vehicle)
             .then(() => {
@@ -91,6 +101,8 @@ export function Vehicles() {
                                     type {vehicle.rateType},{" "}
                                     {vehicle.grossKg.toLocaleString("en-NZ")} kg
                                     {vehicle.electric ? ", electric" : ""}
+                                    {vehicle.odometerKm !== undefined &&
+                                        `, odometer ${vehicle.odometerKm.toLocaleString("en-NZ")} km`}
                                 </span>
                             </span>
                             <span className="flex gap-3">
@@ -151,6 +163,15 @@ export function Vehicles() {
                         inputMode="numeric"
                         value={grossKg}
                         onChange={(e) => setGrossKg(e.target.value)}
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                    Odometer (km), optional
+                    <input
+                        className="rounded border border-neutral-400 bg-white px-2 py-2 text-neutral-900"
+                        inputMode="numeric"
+                        value={odometer}
+                        onChange={(e) => setOdometer(e.target.value)}
                     />
                 </label>
                 <label className="flex items-center gap-2 text-sm">

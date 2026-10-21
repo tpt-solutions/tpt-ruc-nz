@@ -25,5 +25,6 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `pwa/`: Section 43 first-run acknowledgement that gates the app, vehicle profiles (create, list, delete) in IndexedDB, and end-to-end tests for each.
 - `pwa/`: vehicle editing, manual trip entry with a trip list and CSV export, and PNG app icons. Covered by unit and end-to-end tests.
 - `pwa/`: backup export and restore from a JSON file, with an end-to-end round trip and a test that refuses a file that is not a backup.
+- `pwa/`: optional manual odometer reading per vehicle, with validation and end-to-end tests.
 - CI: a `pwa` job runs lint, format, unit tests, the licence check, the build and the end-to-end tests.
 - CI: formatting, clippy, tests, `no_std` builds for thumbv7em, riscv32imc and wasm32, and `cargo-deny`.

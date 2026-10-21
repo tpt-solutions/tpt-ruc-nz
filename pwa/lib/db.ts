@@ -13,6 +13,8 @@ export interface Vehicle {
     /** RUC weight in kilograms. */
     grossKg: number;
     electric: boolean;
+    /** Odometer reading entered by hand, in kilometres. Optional. */
+    odometerKm?: number;
 }
 
 export interface Trip {
