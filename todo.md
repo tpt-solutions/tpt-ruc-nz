@@ -158,9 +158,9 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Host-side tests for the firmware logic (21 tests: GNSS framing, fix merging, recorder, segment queue, payload)
 
 ### PWA ↔ ESP32
-- [ ] Web Bluetooth: scan, connect, reconnect, subscribe to notifications
+- [ ] Web Bluetooth: scan, connect, reconnect, subscribe to notifications (GATT UUIDs and the live-fix decoder are in `pwa/lib/ble.ts`; the connection code is not written yet and needs a board to test)
 - [ ] Pass BLE bytes into the WASM core and update the live UI
-- [ ] Download stored trip segments from the device and merge into IndexedDB (dedupe)
+- [ ] Download stored trip segments from the device and merge into IndexedDB (dedupe) (the protocol side is done and tested: chunk parsing, ordering, CRC checks and the MessagePack decode in `pwa/lib/ble.ts`. The Web Bluetooth connection and the IndexedDB merge are still to do)
 - [ ] Connection state UX, error handling and permissions flow
 - [ ] Capability detection and **graceful message for iOS Safari/Firefox** (no Web Bluetooth)
 - [ ] Document supported browsers/platforms
