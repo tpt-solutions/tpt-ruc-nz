@@ -7,7 +7,7 @@
 //! contains an encoded or backslash character, a `..` or hidden segment, or if
 //! the resolved file lies outside the folder (for example through a symlink).
 //!
-//! Paths map the way a Next.js static export expects: `/vehicles` finds
+//! Paths map the way a static build expects: `/vehicles` finds
 //! `vehicles.html` or `vehicles/index.html`, and `/` finds `index.html`.
 
 use std::path::{Component, Path, PathBuf};
@@ -19,9 +19,9 @@ use serde_json::json;
 
 use crate::json_response;
 
-/// Prefix of the content-hashed files a Next.js build writes. Their names change
+/// Prefix of the content-hashed files the Vite build writes. Their names change
 /// with their content, so browsers may cache them for a long time.
-const HASHED_PREFIX: &str = "_next/static/";
+const HASHED_PREFIX: &str = "assets/";
 
 /// Answers a GET or HEAD for a page or asset under `root`.
 pub async fn serve(root: &Path, request_path: &str, head_only: bool) -> Response<Full<Bytes>> {
@@ -178,8 +178,8 @@ mod tests {
     fn plain_paths_are_kept() {
         assert_eq!(clean_relative("/").unwrap(), PathBuf::new());
         assert_eq!(
-            clean_relative("/_next/static/app.js").unwrap(),
-            Path::new("_next").join("static").join("app.js")
+            clean_relative("/assets/app.js").unwrap(),
+            Path::new("assets").join("app.js")
         );
     }
 

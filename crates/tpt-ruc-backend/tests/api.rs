@@ -1729,11 +1729,11 @@ impl SiteDir {
             std::process::id()
         ));
         std::fs::create_dir_all(site.join("vehicles")).unwrap();
-        std::fs::create_dir_all(site.join("_next").join("static")).unwrap();
+        std::fs::create_dir_all(site.join("assets")).unwrap();
         std::fs::create_dir_all(&outside).unwrap();
         std::fs::write(site.join("index.html"), "<!doctype html>home").unwrap();
         std::fs::write(site.join("vehicles").join("index.html"), "vehicles").unwrap();
-        std::fs::write(site.join("_next").join("static").join("app.js"), "1").unwrap();
+        std::fs::write(site.join("assets").join("app.js"), "1").unwrap();
         std::fs::write(outside.join("secret.txt"), "private").unwrap();
         Self { site, outside }
     }
@@ -1765,7 +1765,7 @@ async fn web_app_is_served_only_when_configured() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, "vehicles");
 
-    let (status, content_type, _) = get_text(&state, "/_next/static/app.js", false).await;
+    let (status, content_type, _) = get_text(&state, "/assets/app.js", false).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(content_type, "text/javascript; charset=utf-8");
 
