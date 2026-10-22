@@ -11,7 +11,7 @@
 //! The rate is set in RAM. It is lost on power-off unless the receiver's
 //! configuration is saved with UBX-CFG-CFG, which this module does not send.
 
-use crate::control::GNSS_RATES_HZ;
+use crate::control::{Command, GNSS_RATES_HZ};
 
 /// UBX sync bytes that start every frame.
 pub const SYNC: [u8; 2] = [0xB5, 0x62];
@@ -36,6 +36,21 @@ pub fn cfg_rate_frame(hz: u8) -> Option<[u8; CFG_RATE_FRAME_LEN]> {
     // Navigation rate 1 means one solution per measurement. timeRef 1 is GPS time.
     let payload = [meas_lo, meas_hi, 0x01, 0x00, 0x01, 0x00];
     Some(frame(CLASS_CFG, ID_CFG_RATE, &payload))
+}
+
+/// The UBX frame the UART must send for a control command, or `None` when the
+/// command does not change the receiver.
+///
+/// The firmware writes the frame to the GNSS UART after `Settings::apply` accepts
+/// the command. Commands that only change the trip filter return `None`.
+pub fn frame_for_command(command: Command) -> Option<[u8; CFG_RATE_FRAME_LEN]> {
+    match command {
+        Command::SetGnssRate { hz } => cfg_rate_frame(hz),
+        Command::RequestSegments
+        | Command::AcknowledgeSegments { .. }
+        | Command::SetMaxHdop { .. }
+        | Command::SetMinMove { .. } => None,
+    }
 }
 
 /// Wraps a payload in a UBX frame with its Fletcher checksum.
@@ -106,6 +121,21 @@ mod tests {
             let (ck_a, ck_b) = fletcher8(&frame[2..12]);
             assert_eq!((frame[12], frame[13]), (ck_a, ck_b));
         }
+    }
+
+    #[test]
+    fn only_the_rate_command_changes_the_receiver() {
+        assert_eq!(
+            frame_for_command(Command::SetGnssRate { hz: 5 }),
+            cfg_rate_frame(5)
+        );
+        assert_eq!(frame_for_command(Command::SetMaxHdop { tenths: 25 }), None);
+        assert_eq!(frame_for_command(Command::SetMinMove { metres: 5 }), None);
+        assert_eq!(frame_for_command(Command::RequestSegments), None);
+        assert_eq!(
+            frame_for_command(Command::AcknowledgeSegments { count: 1 }),
+            None
+        );
     }
 
     #[test]
