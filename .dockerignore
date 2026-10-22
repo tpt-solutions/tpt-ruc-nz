@@ -4,7 +4,6 @@
 # Keep the build context small and free of local data and secrets.
 **/target/
 **/node_modules/
-**/.next/
 **/out/
 pwa/
 hardware/

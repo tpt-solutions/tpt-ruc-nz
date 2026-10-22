@@ -9,7 +9,6 @@ target/
 /pwa/node_modules/
 /pwa/out/
 /pwa/wasm-pkg/
-/pwa/.next/
 /crates/tpt-ruc-wasm/pkg/
 
 # ESP firmware build output

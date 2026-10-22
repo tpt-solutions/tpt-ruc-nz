@@ -15,7 +15,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Auth: single-owner API-key mode (default for self-host) **plus** org/user/role mode for fleets. Per-device ed25519 keys
 - [x] Sync security: TLS + ed25519 signed payloads. Summaries only by default; raw GPS sync is opt-in
 - [x] eRUC export: generic documented JSON/CSV format plus an adapter trait now. Real provider adapters wait for provider API docs (**you supply**)
-- [x] PWA: Next.js **static export** + service worker (no Node server). Backend can optionally serve it
+- [x] PWA: Vite **static build** + service worker (no Node server). Backend can optionally serve it. Replaced Next.js on 2026-10-22 (the app used one page, one layout and no Next-specific APIs)
 - [x] GitHub org **TPT Solutions**, GitHub Actions CI, images on ghcr.io
 - [x] **No hosting.** The project runs no production service and holds no user or NZTA data. The PWA is a static export that operators host themselves, anywhere they like, or serve from the backend (`TPT_RUC_PWA_DIR`). It must work from any origin the operator chooses
 - [x] Extras in scope: hardware track (enclosure, BOM, power, LiPo shutdown) and NZTA Section 43 approval prep
@@ -51,10 +51,12 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ## Phase 1 – The Core & Math (Weeks 1-2)
 
 ### Workspace
+
 - [x] Root `Cargo.toml` workspace with shared lint/dep config
 - [x] Create the crate `tpt-ruc-core` (`no_std` + `alloc`, `std` feature) (no_std; `alloc` not needed yet)
 
 ### NMEA parsing
+
 - [x] Choose the parser: a permissively licensed crate (audit) or write our own `no_std` one
 - [x] Parse GGA (fix quality, satellites, HDOP, altitude)
 - [x] Parse RMC (time, date, position, speed, course, validity)
@@ -65,6 +67,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Accept JSON GPS input as well as NMEA (hardware agnostic): `Fix` deserialises from JSON, with missing HDOP/speed read as `None`
 
 ### Distance
+
 - [x] Haversine implementation using `libm` (no_std floats)
 - [x] Fix-quality, HDOP and speed filters (reject jumps and drift when stationary)
 - [x] Trip segment model: start, stop, accumulated distance, gaps
@@ -72,6 +75,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Optional smoothing/dedupe of points (exact repeat epochs are rejected as `Duplicate`; median smoothing is optional, off by default, window capped at 5)
 
 ### RUC engine
+
 - [x] Vehicle model: NZTA RUC type code plus RUC weight. The type code encodes axles, configuration and powertrain, and the caller chooses it. Petrol exemption is the caller's decision (no RUC charged)
 - [x] Rates as a **versioned, data-driven table** with effective dates. The NZTA table from the 2026 page is in `ruc_rates.rs`, effective from 2026-08-06 (see the open item below)
 - [x] Light vehicle liability (<=3.5t): type 1 and 12 bands, from the NZTA page
@@ -80,9 +84,10 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Licence purchase, odometer-based licence expiry and refund modelling (`licence.rs` models odometer expiry, date limits, the overlap licence and a pro-rata refund. The overlap and refund rules are a model marked **requires verification** against NZTA)
 - [x] Off-road/exempt distance deductions (flagged "requires Section 43 approval") (`billable_after_exemption` refuses unless the `section43_approved` flag is true)
 - [x] Historical-rate lookups for backdated trips (`rate_for` picks the table in force on the trip date)
-- [ ] Verify all rates and rules against NZTA and cite them in docs (powered, unpowered, crane, vintage, motor caravan, overweight and H-type distance rates transcribed from the 2026 page; source and open items in `docs/nzta/rates-research.md`)
+- [x] Verify all rates and rules against NZTA and cite them in docs. Cited in `docs/nzta/rates-research.md` (source URL and retrieval date), and confirmed by the owner on 2026-10-22, including the overweight assumptions and the EV date. The page itself was not re-fetched from this environment
 
 ### Serialisation
+
 - [x] `serde` derives for all models (`no_std`-friendly) (behind the `serde` feature: coordinates, NMEA types and sentences, `Fix`, `Config`, `Segment`, and the RUC models. RUC models are serialise-only because they hold `'static` borrows; `PurchaseMethod` round-trips. Wire tests pin `Liability` and `Vehicle`)
 - [x] JSON via `serde_json` (std feature): `Fix` and `Config` round-trip in tests; the library itself does not link `serde_json`
 - [x] MessagePack via `rmp-serde` (verify `no_std` support, else alternative) (firmware encodes with the `no_std` `rmp` crate, pinned by golden bytes; `rmp-serde` stays host-only)
@@ -90,8 +95,9 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Golden-file tests for wire formats (`Fix` v1 JSON; MessagePack round-trip)
 
 ### Quality
+
 - [x] Unit tests for NMEA, Haversine, filters and RUC (known-distance fixtures; RUC mechanics tests use fixture rates, and `ruc_rates` tests check the NZTA values and weight-band invariants)
-- [ ] Property tests (proptest) and fuzzing (cargo-fuzz) for the parser (proptest done. `fuzz/` has NMEA and Fix JSON targets, written and compiling, but not yet run: that needs nightly and cargo-fuzz)
+- [x] Property tests (proptest) and fuzzing (cargo-fuzz) for the parser. Fuzzing ran on 2026-10-22 with nightly-2026-08-05 on Windows, using the MSVC AddressSanitizer DLL: `nmea_parse` ran 2,503,974 inputs in 60 s, and `fix_json` ran 713,324 in 60 s, with no crashes. Those are short runs. Run them longer on Linux CI before the v1 tag
 - [ ] Real-world NMEA log fixtures (the README in `tests/fixtures/` says what to capture; only a labelled synthetic fixture exists. Needs real captures from you)
 - [x] CI: `cargo check` for core on `wasm32-unknown-unknown` and `thumbv7em-none-eabihf`
 - [ ] CI: `no_std` build check and coverage report (no_std check done in CI; `.github/workflows/coverage.yml` is written with cargo-llvm-cov but has not run yet)
@@ -101,6 +107,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ## Phase 2 – The PWA & WASM (Weeks 3-5)
 
 ### WASM
+
 - [x] Create the `tpt-ruc-wasm` bindings crate (wasm-bindgen 0.2; checks on host and wasm32)
 - [x] Expose parse, distance, RUC calc and (de)serialise functions (`parseNmea`, `haversineM`, `liability`, `adminFeeInclGstMicros`, `billableKm`, and `TripTracker` with JSON fixes)
 - [x] Build script producing an npm package consumed by `pwa/` (`scripts/build-wasm.sh` writes `pwa/wasm-pkg`, which is git-ignored)
@@ -108,19 +115,22 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Rust-side wasm tests (`wasm-bindgen-test`, run with `wasm-pack test --node crates/tpt-ruc-wasm`)
 
 ### PWA scaffold
-- [x] Next.js (TypeScript) with `output: export`, Tailwind CSS (`pwa/`, Next 16.4.2, Tailwind 4.3.3, static build tested)
+
+- [x] Vite (TypeScript, React) with a static build to `pwa/out`, Tailwind CSS (`pwa/`, Vite 8.3.5, Tailwind 4.3.3, static build tested). Replaced Next.js on 2026-10-22
 - [x] Lint/format/test setup (ESLint, Prettier, Vitest, Playwright; `npm run lint`, `format:check`, `test`, `test:e2e`, all passing locally)
 - [x] PWA manifest, icons, installability (manifest, PNG icons at 192 and 512 px, and a service worker controlling the page are checked end to end; the browser's install prompt itself is not automated)
 - [x] Service worker for offline-first shell + WASM caching (hand-written `public/sw.js`, no dependency; an end-to-end test runs the calculator offline, so the WASM module comes from the cache)
 - [x] Dependency licence audit passes in CI (JS check passes locally, with the exceptions accepted in docs/LICENSING.md; the `pwa` CI job has not yet run on GitHub)
 
 ### Storage
+
 - [x] IndexedDB schema: vehicles, trips, segments, settings, device keys (defined in `lib/db.ts` with versioned migrations, using `idb` 8.0.4, ISC. Device keys use a non-extractable private key. A unit test checks the stores with a recording fake, since the unit runner has no IndexedDB)
 - [x] Storage layer with migrations (`idb`, ISC; migrations and the backup round trip are tested in Chromium)
 - [x] Export/import of local data (backup) (download and restore from file, tested end to end; a non-backup file is refused)
 - [x] Persistent storage request and quota handling (asks for persistent storage, shows usage against the quota, and warns at 80%; tested in Chromium)
 
 ### Features
+
 - [x] Vehicle profiles (CRUD) (create, edit, list and delete, tested end to end)
 - [x] Manual odometer entry (optional per vehicle, whole km, shown in the vehicle list; tested end to end)
 - [x] Basic RUC calculator UI (distance in, liability out) (home page; runs the wasm liability function, with an end-to-end test for a known charge)
@@ -136,12 +146,14 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ## Phase 3 – The Hardware MVP (Weeks 6-8)
 
 ### Bench hardware
+
 - [x] Select dev boards: ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1 (recommended in `hardware/README.md`; not yet bought or tested)
 - [x] Select GNSS breakout: u-blox NEO-M8N, 9600 baud 8N1, 1 Hz (recommended; confirm on hardware)
 - [x] Breadboard wiring diagram and pin map for both chips (proposed in `hardware/README.md`; not yet wired)
 - [x] Start the BOM draft in `hardware/` (`hardware/bench-bom.csv`, prices to be quoted)
 
 ### Firmware
+
 - [x] Create the `tpt-ruc-firmware` crate with chip feature flags (`esp32s3`, `esp32c3`, `esp32c6`; enabling two is a compile error. The esp-hal driver is separate and not yet written)
 - [x] Toolchain config for Xtensa (espup) and RISC-V. CI builds the C6 and P4 (RISC-V) binaries and checks the device licence policy. The S3 (Xtensa) build is local only, because it needs the espup toolchain
 - [ ] Verify the esp-hal and BLE stack (`esp-hal` 1.2.2, `esp-println`, `esp-backtrace` and `esp-alloc` are MIT/Apache and pass the device policy. The BLE stack is chosen (decided 2026-10-22): `trouble-host` on `esp-radio`, as in `docs/ble-design.md`. Not built yet. The device policy has two advisory exceptions and one licence exception, in `firmware/esp/deny.toml`)
@@ -155,10 +167,11 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [ ] Pairing/bonding approach and device identity (approach decided 2026-10-22 and confirmed by the owner, following the recommendation in `docs/pairing.md`: BLE bonding with LE Secure Connections, plus an enrolment secret on a label or QR code, with the lost-phone default. Not built; per-device ed25519 keypair stored on device) (`identity.rs` signs and verifies with Ed25519, checked against the RFC 8032 test vector. `SeedSource` is the seed abstraction, with a host test implementation. The on-chip RNG and seed storage are still to do, and the pairing approach is a recommendation awaiting the owner's decision in `docs/pairing.md`)
 - [x] OTA update plan (decided: deferred past v1, with the requirements for adopting it later in `docs/ota-plan.md`)
 - [ ] Low-power modes and watchdog
-- [ ] Firmware config (GNSS rate, filters) via BLE (`gatt::handle_write` parses, validates and applies writes to the control characteristic, host-tested. The recorder takes new filter thresholds through `apply_config`. `ubx::cfg_rate_frame` builds the UBX-CFG-RATE frame for 1 Hz or 5 Hz, host-tested against known bytes. Still open: writing that frame to UART1 from `firmware/esp`, which is not built or run, and the BLE stack that calls `handle_write`)
+- [ ] Firmware config (GNSS rate, filters) via BLE (`gatt::handle_write` parses, validates and applies writes to the control characteristic, host-tested. The recorder takes new filter thresholds through `apply_config`. `ubx::frame_for_command` maps an accepted command to the UBX-CFG-RATE frame for the receiver, and returns nothing for filter-only commands. Host-tested. Still open: writing that frame to UART1 from `firmware/esp`, which is not built or run, and the BLE stack that calls `handle_write`)
 - [x] Host-side tests for the firmware logic (21 tests: GNSS framing, fix merging, recorder, segment queue, payload)
 
 ### PWA ↔ ESP32
+
 - [ ] Web Bluetooth: scan, connect, reconnect, subscribe to notifications (`pwa/lib/ble-connection.ts` is written and unit-tested against a mocked `navigator.bluetooth`. It is NOT tested on a board)
 - [ ] Pass BLE bytes into the WASM core and update the live UI (`pwa/lib/live-track.ts` is written and tested. It has not been run against a device)
 - [ ] Download stored trip segments from the device and merge into IndexedDB (dedupe) (download, save, then acknowledge, so the device keeps segments if saving fails. Mocked tests only. The acknowledgement timing in `docs/ble-design.md` is ambiguous, and the simplest reading was used. Not tested on a board)
@@ -171,6 +184,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 ## Phase 4 – The Backend & Sync (Weeks 9-11)
 
 ### Backend core
+
 - [x] Create the `tpt-ruc-backend` crate (hyper and tokio, with our own routing, CORS and request logging; `cargo deny` passes. Axum and sqlx were dropped because they pulled in `sync_wrapper` (Apache-2.0 only) and `ryu` (BSL-1.0, not allowed))
 - [x] DB layer: SQLite via rusqlite (bundled) is done. **PostgreSQL is deferred** until a deployment needs it (decided 2026-10-22). The handlers are synchronous, so it would need an async rewrite of about 34 call sites, which is not started. tokio-postgres passes the licence check
 - [x] Migrations for SQLite (`0001_init.sql` runs at startup and is tested). PostgreSQL migrations and CI job are **deferred** with PostgreSQL
@@ -179,16 +193,18 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Rate limiting, request size limits, CORS for the PWA (body size limit and CORS allow-list are done. Rate limiting is per client IP: 120 requests a minute, and a client is blocked for 15 minutes after 10 failed API key checks in that window. It sees the TCP peer address, so behind a reverse proxy all clients share the proxy's limit. Trusting `X-Forwarded-For` is not built)
 
 ### Auth & multi-tenancy
+
 - [x] Single-owner mode: one API key, vehicles under one owner (`TPT_RUC_API_KEY`, at least 32 characters, sent as a Bearer token and compared in constant time; the server refuses to start without it. Vehicles are not yet modelled server-side, so trips carry the vehicle fields directly)
 - [x] Tenancy decided (2026-10-22): one organisation per server, as built. Multi-organisation tenancy is out of scope unless a second customer needs it
 - [ ] Org mode: users, orgs, roles (admin/manager/driver) (Tenancy default chosen 2026-10-22: one organisation per server, which is the state built. There is no documented recommendation on this, so it is a default, not an endorsed design. Multi-organisation tenancy is deferred. users, roles, and vehicles with driver assignment are done. Orgs are not built: there is one organisation. Admins create users with `POST /v1/users`, and each user gets a token shown once. Drivers see and delete only their own trips and cannot run reports. Managers see every trip and run reports. Admins also manage users, and deleting a user deletes their trips. Orgs are not built: there is one organisation) Still open after this round. Tenancy is a design decision for the owner: whether the server is one organisation or hosts several, and whether the owner key sees every organisation.
 - [x] Password hashing (argon2) and session/token strategy (Argon2id passwords in `passwords.rs`. Browser sign-in at `POST /v1/sessions` issues a 12-hour session token, ended by `DELETE /v1/sessions` or by a password change (`PUT /v1/users/{id}/password`). User tokens are rotatable with `POST /v1/users/{id}/token`. Only SHA-256 hashes of tokens are stored. Sessions cannot be rotated yet, only signed out or expired)
 - [x] Per-device ed25519 key registration and revocation (`POST /v1/devices` registers a key owned by a user, using ed25519-dalek, BSD-3-Clause. Revoked devices are refused)
 - [x] Signature verification of sync payloads; replay protection (nonce/sequence) (signed uploads carry a per-device sequence that must rise, so replays and older sequences are refused. Owner and user tokens still work unsigned)
-- [ ] Mode switch and docs for upgrading single-owner → org (the owner key and users already coexist. A written upgrade guide is not yet done) Still open: with orgs not built, there is no org mode to switch to yet.
+- [x] ~~Mode switch and docs for upgrading single-owner → org~~ Out of scope (decided 2026-10-22: one organisation per server, so there is no org mode to switch to)
 
 ### Ingest & fleet
-- [ ] Ingest endpoints (REST) for summaries and batched trips; optional WebSocket (`POST /v1/trips` and `GET /v1/trips` are done; WebSocket is not built, and that is deliberate for now)
+
+- [x] Ingest endpoints (REST) for summaries and batched trips; optional WebSocket (`POST /v1/trips` and `GET /v1/trips` are done; WebSocket is not built, and that is deliberate for now. Dropped for v1 (decided 2026-10-22))
 - [x] **Summaries-only by default**; explicit opt-in endpoint for raw GPS points (off unless `TPT_RUC_ALLOW_RAW_GPS=true`. `POST /v1/gps/points` stores a validated batch per user, and deleting the user deletes their points. Gap: `GET /v1/export` does not include raw points yet, and the privacy statement says so)
 - [x] Idempotent uploads and conflict handling (a resent trip with the same values is `unchanged`; the same ID with different values is a `409` and the whole batch is refused, atomically)
 - [x] Vehicles, drivers, device assignment (`/v1/vehicles`, with drivers restricted to vehicles assigned to them. Trips may name a `vehicle_id`)
@@ -197,6 +213,7 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Data retention and deletion endpoints (privacy: export/delete my data) (`GET /v1/export` returns the caller's trips as versioned JSON. `DELETE /v1/trips?from=&to=` deletes an inclusive date range. Optional `TPT_RUC_RETENTION_DAYS` runs an hourly task that deletes older trips)
 
 ### Reports & eRUC
+
 - [x] CSV reports formatted for NZTA auditing (`GET /v1/reports/trips.csv`, one line per trip with distance, billed km, rate version and charge; `GET /v1/reports/monthly.csv`, totals per month and vehicle type. Both take optional `from` and `to` dates. Charges are NZD to the cent, rounded once from exact totals. Text fields are escaped, and formula-like values are neutralised. PDF reports are still to do)
 - [x] PDF reports (licence-checked PDF crate, e.g. printpdf or genpdf) (`GET /v1/reports/monthly.pdf` uses lopdf 0.46 with default features off, MIT. pdf-writer was blocked by ryu)
 - [x] Define the generic eRUC export schema (JSON/CSV) and document it in `docs/` (`docs/eruc-export.md`; `GET /v1/eruc/export` serves `generic-json` and `generic-csv`, manager-only, with tests)
@@ -205,27 +222,30 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [ ] Placeholder tasks per real provider (blocked on you supplying API docs)
 
 ### PWA sync
+
 - [x] Sync settings UI (backend URL, API key/login, opt-in toggles) (the API key is stored in this browser, and the UI warns about that)
-- [x] Device key generation (WebCrypto ed25519, or a WASM fallback) and secure storage (WebCrypto Ed25519 with a non-extractable key. If the browser lacks Ed25519, signing is turned off and the UI says so. The backend does not yet verify PWA signatures)
+- [x] Device key generation (WebCrypto ed25519, or a WASM fallback) and secure storage (WebCrypto Ed25519 with a non-extractable key. If the browser lacks Ed25519, signing is turned off and the UI says so. The backend verifies PWA signatures. See the signing item below)
 - [x] Sync engine: IndexedDB → backend with batching, retries and offline queue (batched uploads, retries honouring `Retry-After`, an offline queue, and conflicts and rejections shown with a retry action)
-- [x] Sign payloads; show sync status and errors (signed when the browser supports Ed25519. Status and errors are shown)
+- [x] Sign payloads; show sync status and errors. Signing was broken until 2026-10-22: the PWA sent a base64 signature over the raw body, with no device ID or sequence number, so every signed upload was refused. It now registers its key with a user's token (`lib/device-upload.ts`), signs the backend's canonical message, and sends `X-Device-Id`, `X-Device-Sequence` and a hex signature. The owner key cannot register a device, so its uploads go unsigned, which the backend allows. Covered by unit tests and by `lib/sync.integration.test.ts` against a real backend (signed upload, replay refused, tampered body refused, owner-key fallback). Not yet covered in a browser
 - [x] Fleet views in the PWA (if online/org mode) (uses `/v1/fleet/summary`, so it needs a manager or admin key)
 - [x] In-app sync schedule setting: manual, on open, every 15 minutes, hourly or daily, plus sync on `visibilitychange` and `online` (`lib/sync-schedule.ts`, a schedule select in the sync panel; checks run on open, `online`, `visibilitychange` and a 60 s page timer, and only while the app is open. Unit and end-to-end tested)
 - [x] Periodic Background Sync via the service worker (progressive enhancement: Chromium and installed PWAs only; the browser picks the actual timing). `lib/background-sync.ts` registers it, `lib/background-sync-worker.ts` runs the engine in the worker, and `npm run build:sw` bundles it into `public/sync-worker.js` with rolldown. Unit-tested with fakes, and an end-to-end test checks the worker loads the bundle. NOT tested on an installed app: the browser's actual wake-up timing is unverified
 
 ### Deployment
+
 - [x] Multi-stage Dockerfile (small image, non-root, healthcheck) (`Dockerfile`: a Rust build stage and a Debian slim runtime that runs as user 10001. The health check is `tpt-ruc-backend healthcheck`, so no `curl` is needed. Not yet built in a Docker environment, only its build command has been checked outside Docker)
 - [ ] Multi-arch images (amd64 + arm64 for Raspberry Pi/NAS). `.github/workflows/docker-publish.yml` is written for amd64 and arm64, and it is now manual only (decided 2026-10-22: optional, not automatic). It has not run on GitHub yet
 - [ ] `docker-compose.yml` (SQLite default; Postgres profile deferred with PostgreSQL) with the `./data` volume (`docker-compose.yml` runs with SQLite on a named volume, `tpt-ruc-data`, because a bind-mounted host folder is not writable by the container's user. The Postgres profile is not built)
 - [x] Optional bundled PWA static files served by the backend (`TPT_RUC_PWA_DIR`, off by default. `static_files.rs` refuses encoded, dot and `..` paths and any file that resolves outside the folder. Static GETs are exempt from the API rate limit. Covered by API tests, not run in a browser)
 - [x] Backups guidance, TLS/reverse-proxy guide (Caddy/Traefik example) (`docs/guides/reverse-proxy-and-backups.md`. The Caddy example is the recommended one. The Traefik example is an untested sketch. The backup commands need the volume's full name, which Docker prefixes with the project folder)
-- [ ] Integration tests: PWA ↔ backend end-to-end
+- [ ] Integration tests: PWA ↔ backend end-to-end. The sync engine is tested against a real backend binary, including signed uploads (`lib/sync.integration.test.ts`, skipped if the binary is not built). Still open: a browser test that drives the sync panel against a real backend, and the BLE-to-backend path, which needs a device
 - [ ] Security review: input validation, auth, dependency audit (`cargo audit`) (an internal review fixed a cross-user trip-ID leak, migration 0005. Advisories are checked by `cargo deny`. `cargo audit` was run on 2026-10-22 with no advisories reported. A human review is still needed)
 - [ ] Phase 4 exit: tag `v0.4.0`, `docker compose up` works on a Raspberry Pi
 
 ## Phase 5 – Hardware Refinement & Mobile FFI (Weeks 12+)
 
 ### Custom PCB
+
 - [ ] Requirements: ESP32-S3 + GNSS, 12V/24V input, OBD-II and hardwire options (not yet written as a requirements document; the schematic is also not started)
 - [ ] Power design: automotive buck regulator, transient/reverse-polarity protection
 - [ ] LiPo backup + charger and brown-out/clean-shutdown detection (ties into firmware flush-to-flash)
@@ -242,20 +262,23 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Assembly/build instructions in `docs/` (bench build in `docs/guides/hardware-build.md`, untested; custom PCB build in `docs/pcb-build.md` is BLOCKED until the schematic exists)
 
 ### Mobile bindings (no MPL tooling)
+
 - [x] Create `tpt-ruc-ffi-ios` using **swift-bridge** (verify licence) (`crates/tpt-ruc-ffi-ios`; swift-bridge 0.1.59 is usable under its MIT option. Returns NZD as `Double` because swift-bridge cannot return `u64`. Host-compiled; iOS target not built here)
 - [x] Create `tpt-ruc-ffi-android` using the **jni** crate (`crates/tpt-ruc-ffi-android`, jni 0.22.4, MIT OR Apache-2.0. JNI symbols present in the host build; Android target not built here)
-- [x] Build scripts for xcframework and Android `.so` (cargo-ndk). `build.rs` in `tpt-ruc-ffi-ios` now generates the swift-bridge glue into `target/ios/generated` (host-checked). `build-ios.sh` packages it. `.github/workflows/mobile.yml` runs both builds on CI, manual only. Not yet run on a macOS or Android runner. The cargo-ndk licence still needs checking before the install step is kept
+- [x] Build scripts for xcframework and Android `.so` (cargo-ndk). `build.rs` in `tpt-ruc-ffi-ios` now generates the swift-bridge glue into `target/ios/generated` (host-checked). `build-ios.sh` packages it. `.github/workflows/mobile.yml` runs both builds on CI, manual only. Not yet run on a macOS or Android runner. cargo-ndk is MIT OR Apache-2.0 (checked on crates.io 2026-10-22). It is build tooling installed on CI, not a shipped dependency
 - [x] Minimal sample apps (Swift, Kotlin) calling the core (under `samples/`, marked untested)
 - [ ] Native BLE on iOS/Android feeding the core. **Not for v1** (decided 2026-10-22): accept the iOS Web Bluetooth gap, which is documented. Plan kept in `docs/mobile-ble-plan.md` (BLOCKED: needs devices)
 - [ ] CI builds for the iOS and Android targets: `.github/workflows/mobile.yml` is added (manual only, macOS and Ubuntu runners). Not yet run on GitHub
 
 ### eRUC providers
+
 - [ ] Review the provider API docs you supply
 - [ ] Implement an adapter per provider with sandbox tests
 - [ ] Provider onboarding docs
 
 ### NZTA Section 43 approval prep
-- [ ] Read Section 43 and the NZTA distance recorder approval requirements; record them in `docs/nzta/` (criteria the docs cite are marked "needs NZTA source". They must be read from the NZTA primary source)
+
+- [ ] Read Section 43 and the NZTA distance recorder approval requirements; record them in `docs/nzta/`. Out of scope for the approval itself (decided 2026-10-22: this project does not apply). Reading them would still help design, so it stays open as a design input only
 - [x] Gap analysis: current design vs approval criteria (accuracy, tamper evidence, security, data integrity) (`docs/nzta/section43-gap-analysis.md`; criteria not verified against primary sources)
 - [x] Define accuracy test protocol and test route evidence (`docs/nzta/accuracy-test-protocol.md`, a protocol only)
 - [ ] Collect test results and calibration evidence (out of scope for this project: a person applying for approval would need to do this)
@@ -271,4 +294,4 @@ Owner: TPT Solutions · Licence: MIT OR Apache-2.0 (dual) · Source of truth: `s
 - [x] Privacy statement describing the local-first/zero-knowledge model (`docs/privacy.md`, checked against the code)
 - [ ] Final licence audit (`cargo deny`, JS audit, third-party notices) and `v1.0.0` tag
 - [ ] Release automation: binaries, Docker images, firmware `.bin`, PWA bundle (not started). **Timing decided 2026-10-22:** no release until the first real-device drive test is done
-- [ ] Maintenance plan: dependency updates, NZTA rate-change monitoring, issue triage
+- [x] Maintenance plan: dependency updates, NZTA rate-change monitoring, issue triage (`docs/maintenance.md`)

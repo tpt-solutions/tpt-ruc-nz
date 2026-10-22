@@ -62,3 +62,12 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `hardware/`: bench notes with the recommended boards, GNSS receiver, UART settings and pin map, and a BOM draft. Not yet verified on hardware.
 - CI: a `device` job builds the ESP32-C6 and ESP32-P4 binaries and runs cargo-deny with the device policy in `firmware/esp/deny.toml`.
 - CI: formatting, clippy, tests, `no_std` builds for thumbv7em, riscv32imc and wasm32, and `cargo-deny`.
+
+### Changed
+
+- `pwa/`: the PWA is built with Vite (React and TypeScript) instead of Next.js. The output is still a static build in `pwa/out/`, and the Next.js-only dependencies, including the `sharp` image optimiser, are gone.
+- `tpt-ruc-backend`: hashed static files are served from `assets/`, the Vite build's folder, instead of `_next/static/`.
+
+### Fixed
+
+- `pwa/`: signed trip uploads were refused by the backend. The app now registers its device key with a user's token, and sends the device ID, sequence number and hex signature the backend checks. The owner key still sends unsigned uploads.

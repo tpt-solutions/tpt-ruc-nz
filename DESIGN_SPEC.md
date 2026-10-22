@@ -18,21 +18,21 @@ Built on a unified Rust core, the project aims for memory safety, performance, a
 
 ## 3. Decisions Locked In
 
-| Topic | Decision |
-|---|---|
-| Serialisation | MessagePack (`rmp-serde`) for BLE and sync wire format. JSON for config and GPS input |
-| Firmware targets | ESP32-S3 (Xtensa) and an ESP RISC-V chip (C3/C6), one crate with chip feature flags |
-| Core portability | `thumbv7em-none-eabihf` is a `no_std` portability check for the core, not a firmware target |
-| Mobile FFI | `swift-bridge` (iOS) and the `jni` crate (Android). UniFFI is replaced |
-| Web Bluetooth | iOS Safari and Firefox lack it. Accepted limitation: iOS BLE comes via the native app |
-| RUC scope | Light and heavy vehicles, full NZTA types. Rates are a versioned data table, not hardcoded |
-| Backend database | SQLite for v1. PostgreSQL is deferred until a deployment needs it |
-| Auth | Single-owner API-key mode (default for self-host) plus org/user/role mode for fleets. Per-device ed25519 keys |
-| Sync security | TLS plus ed25519-signed payloads. Summaries only by default; raw GPS sync is opt-in |
-| eRUC export | Generic documented JSON/CSV format plus an adapter trait. Real provider adapters wait for provider API docs |
-| PWA | Next.js static export plus service worker (no Node server). Backend can optionally serve it |
-| Hosting | GitHub org `tpt-solutions`, GitHub Actions CI. No hosted service: operators run their own. Container images are built on demand (manual workflow), not published by default |
-| Extras in scope | Hardware track (enclosure, BOM, power, LiPo shutdown) and NZTA Section 43 approval prep |
+| Topic            | Decision                                                                                                                                                                    |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Serialisation    | MessagePack (`rmp-serde`) for BLE and sync wire format. JSON for config and GPS input                                                                                       |
+| Firmware targets | ESP32-S3 (Xtensa) and an ESP RISC-V chip (C3/C6), one crate with chip feature flags                                                                                         |
+| Core portability | `thumbv7em-none-eabihf` is a `no_std` portability check for the core, not a firmware target                                                                                 |
+| Mobile FFI       | `swift-bridge` (iOS) and the `jni` crate (Android). UniFFI is replaced                                                                                                      |
+| Web Bluetooth    | iOS Safari and Firefox lack it. Accepted limitation: iOS BLE comes via the native app                                                                                       |
+| RUC scope        | Light and heavy vehicles, full NZTA types. Rates are a versioned data table, not hardcoded                                                                                  |
+| Backend database | SQLite for v1. PostgreSQL is deferred until a deployment needs it                                                                                                           |
+| Auth             | Single-owner API-key mode (default for self-host) plus org/user/role mode for fleets. Per-device ed25519 keys                                                               |
+| Sync security    | TLS plus ed25519-signed payloads. Summaries only by default; raw GPS sync is opt-in                                                                                         |
+| eRUC export      | Generic documented JSON/CSV format plus an adapter trait. Real provider adapters wait for provider API docs                                                                 |
+| PWA              | Vite static build plus service worker (no Node server). Backend can optionally serve it                                                                                     |
+| Hosting          | GitHub org `tpt-solutions`, GitHub Actions CI. No hosted service: operators run their own. Container images are built on demand (manual workflow), not published by default |
+| Extras in scope  | Hardware track (enclosure, BOM, power, LiPo shutdown) and NZTA Section 43 approval prep                                                                                     |
 
 ## 4. System Architecture
 
@@ -50,7 +50,7 @@ tpt-ruc-nz/
 │   ├── tpt-ruc-backend/    # Self-hostable API, Axum (Phase 4)
 │   ├── tpt-ruc-ffi-ios/    # swift-bridge bindings (Phase 5)
 │   └── tpt-ruc-ffi-android/# jni bindings (Phase 5)
-├── pwa/                    # Progressive Web App (TypeScript, Next.js, WASM)
+├── pwa/                    # Progressive Web App (TypeScript, Vite, WASM)
 ├── hardware/               # KiCad schematics, PCB layout, BOM, 3D STLs
 └── docs/                   # User guides, NZTA compliance, build instructions
 ```
@@ -107,7 +107,7 @@ A lightweight, self-hostable API for data aggregation, fleet management, and rep
 
 The user-facing interface that bridges hardware and backend.
 
-- **Stack:** TypeScript, Next.js (static export), Tailwind CSS.
+- **Stack:** TypeScript, React, Vite (static build), Tailwind CSS.
 - **Responsibilities:**
   - Web Bluetooth: scan, connect, and read data from the ESP32.
   - WASM: load `tpt-ruc-core` to do the heavy calculations in the browser.
@@ -147,7 +147,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/app/data   # SQLite persistence
+      - ./data:/app/data # SQLite persistence
     environment:
       - RUST_LOG=info
 ```
@@ -160,7 +160,7 @@ Each phase ends with a tagged release and a working demo.
 
 1. **Phase 0, Foundations and governance:** licences, repo skeleton, CI baseline, licence policy.
 2. **Phase 1, Core and maths (weeks 1-2):** Cargo workspace, `tpt-ruc-core` (NMEA, Haversine, RUC rate logic), unit and property tests.
-3. **Phase 2, PWA and WASM (weeks 3-5):** Next.js PWA scaffold, core compiled to WASM, manual odometer entry, basic RUC calculator UI.
+3. **Phase 2, PWA and WASM (weeks 3-5):** Vite PWA scaffold, core compiled to WASM, manual odometer entry, basic RUC calculator UI.
 4. **Phase 3, Hardware MVP (weeks 6-8):** off-the-shelf ESP32 and GPS breakout boards (no custom PCB yet). Firmware reads GPS and broadcasts over BLE. PWA connects via Web Bluetooth.
 5. **Phase 4, Backend and sync (weeks 9-11):** `tpt-ruc-backend` (hyper and tokio, SQLite; PostgreSQL deferred), PWA sync, Docker setup for self-hosting.
 6. **Phase 5, Hardware refinement and FFI (weeks 12+):** custom KiCad PCB for the ESP32 GPS node, iOS and Android bindings, eRUC provider export formats.

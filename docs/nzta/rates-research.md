@@ -27,6 +27,7 @@ Written for: engineers and estimators maintaining the rate table in `crates/tpt-
 
 - [x] Earlier tables are out of scope (maintainer decision, 2026). Trips before 2026-08-06 return `NoRateTable`.
 - [x] EV start date set to 1 April 2024 (maintainer's statement). Check it against NZTA when the page is next reviewed.
-- [x] Additional-licence tables transcribed. Confirm the two assumptions above with NZTA.
+- [x] Additional-licence tables transcribed. The two assumptions above are confirmed with NZTA (owner confirmation, 2026-10-22).
+- [x] Rates confirmed with NZTA (owner confirmation, 2026-10-22). The page was not fetched from the build environment, so this record is the owner's confirmation, not a re-check of the page.
 - [x] Transaction fees added (`PurchaseMethod`, `admin_fee_incl_gst_micros`).
 - [ ] Re-check the table on a schedule. NZTA says heavy vehicle licences expire one month after any rate increase, which the product will need to model.

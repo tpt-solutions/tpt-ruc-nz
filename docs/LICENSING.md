@@ -10,23 +10,21 @@ Allowed licences: MIT, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unlicense, CC0-1.0
 
 Rejected:
 
-- **Apache-2.0-only** crates, because the project is not Apache-only and they are not in the allow list.
+- **Apache-2.0-only** packages and crates in the shipped or production tree. The project is not Apache-only and they break the MIT chain. Dev-only tooling is allowed when it is not shipped: Playwright is a dev dependency of the PWA and is accepted (decided 2026-10-22).
+- **CC-BY and other data licences** (for example `caniuse-lite`, CC-BY-4.0).
 - **MPL-2.0**, which rules out uniffi and cbindgen.
-- **GPL, LGPL, AGPL** and other copyleft licences.
+- **GPL, LGPL, AGPL** and other copyleft licences, including LGPL libvips binaries pulled in by `sharp`.
 - Protobuf via `prost`, which is Apache-only.
 
 Enforced by `cargo deny check` (`deny.toml`) and the JS licence check for `pwa/` (`pwa/scripts/check-licences.mjs`, run by `npm run licenses`). Third-party notices are generated with `cargo about` (`about.toml`) into `THIRD_PARTY_LICENSES`.
 
-### JavaScript exceptions (accepted)
+### JavaScript exceptions
 
-The JS check allows the MIT, ISC, BSD, 0BSD, Unlicense, CC0, BlueOak and Python-2.0 licences, and dual licences through their permissive option. It also accepts these named exceptions, each with a reason in the script:
+None are accepted. The JS check allows the MIT, ISC, BSD, 0BSD, Unlicense, CC0, BlueOak and Python-2.0 licences, and dual licences through their permissive option. `EXCEPTIONS` in the script is empty. Any future exception needs a named package, a reason and a review.
 
-- **`sharp` and `@img/*`** (Apache-2.0, LGPL-3.0 libvips binaries): optional image optimiser of Next.js. Not used by the static export and not in `out/`. The LGPL binary is not shipped, but it is in the install tree. Removing it would clear the exception.
-- **`@swc/helpers`** (Apache-2.0): a runtime helper that Next.js uses in its output. It ships in the bundle, so this needs an explicit decision.
-- **`detect-libc`** (Apache-2.0): platform detection for the sharp install.
-- **Playwright** (Apache-2.0), **`baseline-browser-mapping`** (Apache-2.0) and **`caniuse-lite`** (CC-BY-4.0): build-time and test tooling, not shipped.
+**Production scope.** The check covers the packages that run in production: the root `dependencies`, and what they pull in through `dependencies` and `optionalDependencies`. Peer dependencies and `devDependencies` are not checked, so Playwright, Vite, Vitest and the other build and test tools are out of scope. They are not shipped in `out/`.
 
-These exceptions were accepted on the maintainer's instruction to follow the recommendations. Remove the `sharp` exception once Next.js no longer installs it.
+The PWA is built with Vite (replaced Next.js on 2026-10-22). Its production dependencies are `idb`, `react`, `react-dom`, the wasm package and their own dependencies, and all of them are MIT.
 
 ## Source file headers
 
