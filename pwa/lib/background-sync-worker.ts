@@ -9,12 +9,14 @@ import type { AppSettings } from "./app-settings";
 import type { DeviceKey } from "./db";
 import { scheduleIntervalMs } from "./sync-schedule";
 import { syncPending, type SyncReport, type SyncStore } from "./sync";
+import type { UploadSigner } from "./device-upload";
 
 export interface BackgroundDeps {
     readSettings(): Promise<AppSettings>;
     recordAttempt(nowMs: number): Promise<void>;
     loadKey(): Promise<DeviceKey | undefined>;
-    sign(key: DeviceKey, body: string): Promise<string>;
+    /** Builds the signer for this key and settings. Called only when the key can sign. */
+    signer(key: DeviceKey, settings: AppSettings): UploadSigner;
     fetch: typeof fetch;
     sleep(ms: number): Promise<void>;
     store: SyncStore;
@@ -44,7 +46,7 @@ export async function runBackgroundSync(deps: BackgroundDeps): Promise<Backgroun
             baseUrl: settings.backendUrl,
             apiKey: settings.apiKey,
             fetch: deps.fetch,
-            sign: key?.privateKey ? (body) => deps.sign(key, body) : undefined,
+            sign: key?.privateKey ? deps.signer(key, settings) : undefined,
             sleep: deps.sleep,
         },
         deps.store,

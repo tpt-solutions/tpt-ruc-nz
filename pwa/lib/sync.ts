@@ -43,8 +43,11 @@ export interface SyncDeps {
     baseUrl: string;
     apiKey: string;
     fetch: typeof fetch;
-    /** Signs the request body. Omitted when the browser cannot sign. */
-    sign?: (body: string) => Promise<string>;
+    /**
+     * Headers that sign the upload. Omitted when the browser cannot sign, or when the
+     * device cannot be registered, in which case the upload goes unsigned.
+     */
+    sign?: (trips: UploadTrip[]) => Promise<Record<string, string>>;
     /** Waits between retries. Tests replace it so they do not wait. */
     sleep: (ms: number) => Promise<void>;
 }
@@ -111,7 +114,7 @@ export async function postTrips(deps: SyncDeps, trips: UploadTrip[]): Promise<Up
         "Content-Type": "application/json",
         Authorization: `Bearer ${deps.apiKey}`,
     };
-    if (deps.sign) headers["X-Device-Signature"] = await deps.sign(body);
+    if (deps.sign) Object.assign(headers, await deps.sign(trips));
 
     let response: Response;
     try {

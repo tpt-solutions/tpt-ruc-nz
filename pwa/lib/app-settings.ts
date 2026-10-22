@@ -25,6 +25,14 @@ export interface AppSettings {
     syncSchedule: SyncSchedule;
     /** Epoch ms of the last sync attempt, or 0. Lets interval schedules survive a reload. */
     lastSyncAttemptMs: number;
+    /** The backend's ID for this browser's signing key. Empty until registered. */
+    deviceId: string;
+    /** The local key the registration was made with. Empty until registered. */
+    deviceKeyId: string;
+    /** The backend the registration was made with. A new backend means a new registration. */
+    deviceBackendUrl: string;
+    /** The last sequence number used for a signed upload. The backend needs each one to rise. */
+    deviceSequence: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -34,6 +42,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     apiKey: "",
     syncSchedule: DEFAULT_SYNC_SCHEDULE,
     lastSyncAttemptMs: 0,
+    deviceId: "",
+    deviceKeyId: "",
+    deviceBackendUrl: "",
+    deviceSequence: 0,
 };
 
 /**
@@ -58,6 +70,16 @@ export function mergeSettings(stored: unknown): AppSettings {
             Number.isFinite(record.lastSyncAttemptMs) &&
             record.lastSyncAttemptMs > 0
                 ? record.lastSyncAttemptMs
+                : 0,
+        deviceId: typeof record.deviceId === "string" ? record.deviceId : "",
+        deviceKeyId: typeof record.deviceKeyId === "string" ? record.deviceKeyId : "",
+        deviceBackendUrl:
+            typeof record.deviceBackendUrl === "string" ? record.deviceBackendUrl : "",
+        deviceSequence:
+            typeof record.deviceSequence === "number" &&
+            Number.isSafeInteger(record.deviceSequence) &&
+            record.deviceSequence >= 0
+                ? record.deviceSequence
                 : 0,
     };
 }

@@ -21,6 +21,10 @@ describe("mergeSettings", () => {
             apiKey: "k",
             syncSchedule: "open",
             lastSyncAttemptMs: 0,
+            deviceId: "",
+            deviceKeyId: "",
+            deviceBackendUrl: "",
+            deviceSequence: 0,
         });
     });
 

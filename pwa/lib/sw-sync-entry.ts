@@ -8,7 +8,8 @@
 
 import { readAppSettings, writeAppSettings } from "./app-settings";
 import { runBackgroundSync } from "./background-sync-worker";
-import { loadDeviceKey, signText } from "./device-key";
+import { loadDeviceKey } from "./device-key";
+import { makeDeviceSigner } from "./device-upload";
 import { indexedDbSyncStore } from "./sync-store";
 
 declare const self: { tptRucSync?: () => Promise<unknown> };
@@ -20,7 +21,14 @@ self.tptRucSync = () =>
             await writeAppSettings({ lastSyncAttemptMs: nowMs });
         },
         loadKey: loadDeviceKey,
-        sign: (key, body) => signText(crypto.subtle, key, body),
+        signer: (key, settings) =>
+            makeDeviceSigner({
+                subtle: crypto.subtle,
+                key,
+                baseUrl: settings.backendUrl,
+                apiKey: settings.apiKey,
+                fetch: (input, init) => fetch(input, init),
+            }),
         fetch: (input, init) => fetch(input, init),
         sleep: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
         store: indexedDbSyncStore,

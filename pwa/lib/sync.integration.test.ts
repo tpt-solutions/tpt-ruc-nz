@@ -7,11 +7,14 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdtempSync } from "node:fs";
+import { webcrypto } from "node:crypto";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Trip, Vehicle } from "./db";
+import { createDeviceKey } from "./device-key";
+import { makeDeviceSigner, type DeviceState, type DeviceStateStore } from "./device-upload";
 import { syncPending, type SyncStore } from "./sync";
 
 const BINARY = resolve(
@@ -75,6 +78,42 @@ function memoryStore(trips: Trip[]): SyncStore & { trips: Trip[] } {
     return store;
 }
 
+/** A local noon on October `day` 2026, as epoch milliseconds. */
+const oct = (day: number) => new Date(2026, 9, day, 12).getTime();
+
+/** Starts a backend on a free port with its own database. */
+async function startBackend(): Promise<{ child: ChildProcess; baseUrl: string }> {
+    const port = await freePort();
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const dataDir = mkdtempSync(join(tmpdir(), "tpt-ruc-pwa-it-"));
+    const child = spawn(BINARY, [], {
+        env: {
+            ...process.env,
+            TPT_RUC_BIND: `127.0.0.1:${port}`,
+            TPT_RUC_DATABASE_URL: `sqlite://${join(dataDir, "tpt.db")}`,
+            TPT_RUC_API_KEY: KEY,
+            RUST_LOG: "warn",
+        },
+        stdio: "ignore",
+    });
+    await waitForHealth(baseUrl);
+    return { child, baseUrl };
+}
+
+/** Device registration and sequence numbers, kept in memory for the test. */
+function deviceState(): DeviceStateStore & { value: DeviceState } {
+    const store = {
+        value: { deviceId: "", deviceKeyId: "", deviceBackendUrl: "", deviceSequence: 0 },
+        async read() {
+            return { ...store.value };
+        },
+        async write(patch: Partial<DeviceState>) {
+            store.value = { ...store.value, ...patch };
+        },
+    };
+    return store;
+}
+
 const haveBinary = existsSync(BINARY);
 
 describe.skipIf(!haveBinary)("sync against a real backend", () => {
@@ -82,20 +121,7 @@ describe.skipIf(!haveBinary)("sync against a real backend", () => {
     let baseUrl = "";
 
     beforeAll(async () => {
-        const port = await freePort();
-        baseUrl = `http://127.0.0.1:${port}`;
-        const dataDir = mkdtempSync(join(tmpdir(), "tpt-ruc-pwa-it-"));
-        child = spawn(BINARY, [], {
-            env: {
-                ...process.env,
-                TPT_RUC_BIND: `127.0.0.1:${port}`,
-                TPT_RUC_DATABASE_URL: `sqlite://${join(dataDir, "tpt.db")}`,
-                TPT_RUC_API_KEY: KEY,
-                RUST_LOG: "warn",
-            },
-            stdio: "ignore",
-        });
-        await waitForHealth(baseUrl);
+        ({ child, baseUrl } = await startBackend());
     }, 30_000);
 
     afterAll(() => {
@@ -108,8 +134,6 @@ describe.skipIf(!haveBinary)("sync against a real backend", () => {
         fetch,
         sleep: async () => undefined,
     });
-
-    const oct = (day: number) => new Date(2026, 9, day, 12).getTime();
 
     it("uploads pending trips and the server stores them with its own charge", async () => {
         const store = memoryStore([
@@ -151,6 +175,130 @@ describe.skipIf(!haveBinary)("sync against a real backend", () => {
         expect(report.error).toContain("API key");
         expect(report.pending).toBe(1);
         expect(store.trips[0].sync).toBeUndefined();
+    });
+});
+
+describe.skipIf(!haveBinary)("signed uploads against a real backend", () => {
+    let child: ChildProcess | undefined;
+    let baseUrl = "";
+    let userToken = "";
+    const subtle = webcrypto.subtle as unknown as SubtleCrypto;
+
+    beforeAll(async () => {
+        ({ child, baseUrl } = await startBackend());
+        // The owner key cannot register a device, so the signed uploads use a user's token.
+        const response = await fetch(`${baseUrl}/v1/users`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "Phillip", role: "manager" }),
+        });
+        userToken = ((await response.json()) as { token: string }).token;
+    }, 30_000);
+
+    afterAll(() => {
+        child?.kill();
+    });
+
+    const userDeps = (fetchFn: typeof fetch = fetch) => ({
+        baseUrl,
+        apiKey: userToken,
+        fetch: fetchFn,
+        sleep: async () => undefined,
+    });
+
+    it("stores a signed upload and records the device against the user", async () => {
+        const key = await createDeviceKey(subtle);
+        const state = deviceState();
+        const sign = makeDeviceSigner({ subtle, key, baseUrl, apiKey: userToken, fetch, state });
+        const store = memoryStore([
+            { id: "sig-1", vehicleId: "v1", startMs: oct(5), endMs: oct(5) + 1, distanceM: 7_000 },
+        ]);
+
+        const report = await syncPending({ ...userDeps(), sign }, store);
+        expect(report).toMatchObject({ uploaded: 1, pending: 0, conflicts: [], rejected: [] });
+        expect(state.value.deviceSequence).toBe(1);
+
+        const listed = await fetch(`${baseUrl}/v1/trips`, {
+            headers: { Authorization: `Bearer ${userToken}` },
+        });
+        const body = (await listed.json()) as { trips: { id: string }[] };
+        expect(body.trips.map((t) => t.id)).toContain("sig-1");
+    });
+
+    it("refuses a replay of a signed upload", async () => {
+        const key = await createDeviceKey(subtle);
+        const sign = makeDeviceSigner({
+            subtle,
+            key,
+            baseUrl,
+            apiKey: userToken,
+            fetch,
+            state: deviceState(),
+        });
+        let sent: RequestInit | undefined;
+        const recording = (async (input: RequestInfo | URL, init?: RequestInit) => {
+            sent = init;
+            return fetch(input, init);
+        }) as typeof fetch;
+        const store = memoryStore([
+            { id: "sig-2", vehicleId: "v1", startMs: oct(6), endMs: oct(6) + 1, distanceM: 8_000 },
+        ]);
+        await syncPending({ ...userDeps(recording), sign }, store);
+        expect(sent).toBeDefined();
+
+        const replay = await fetch(`${baseUrl}/v1/trips`, sent);
+        // The backend answers a sequence it has already seen with 409 (ApiError::Replay).
+        expect(replay.status).toBe(409);
+    });
+
+    it("refuses a signed upload whose body was changed after signing", async () => {
+        const key = await createDeviceKey(subtle);
+        const sign = makeDeviceSigner({
+            subtle,
+            key,
+            baseUrl,
+            apiKey: userToken,
+            fetch,
+            state: deviceState(),
+        });
+        const signed = {
+            id: "sig-3",
+            date: "2026-10-07",
+            metres: 1_000,
+            vehicle: { rate_type: "1", gross_kg: 3000, electric: false },
+        };
+        const headers = await sign([signed]);
+        const tampered = { ...signed, metres: 900_000 };
+        const response = await fetch(`${baseUrl}/v1/trips`, {
+            method: "POST",
+            headers: {
+                ...headers,
+                Authorization: `Bearer ${userToken}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ trips: [tampered] }),
+        });
+        expect(response.status).toBe(401);
+    });
+
+    it("sends unsigned uploads with the owner key, which the backend still accepts", async () => {
+        const key = await createDeviceKey(subtle);
+        const sign = makeDeviceSigner({
+            subtle,
+            key,
+            baseUrl,
+            apiKey: KEY,
+            fetch,
+            state: deviceState(),
+        });
+        const store = memoryStore([
+            { id: "sig-4", vehicleId: "v1", startMs: oct(8), endMs: oct(8) + 1, distanceM: 2_000 },
+        ]);
+        const report = await syncPending(
+            { baseUrl, apiKey: KEY, fetch, sign, sleep: async () => undefined },
+            store,
+        );
+        expect(report).toMatchObject({ uploaded: 1, conflicts: [], rejected: [] });
     });
 });
 

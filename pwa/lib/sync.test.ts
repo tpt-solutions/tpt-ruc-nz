@@ -116,8 +116,11 @@ describe("postTrips", () => {
 
     it("adds a device signature when signing is available", async () => {
         const { fetch: fetchFn, calls } = scripted([() => json(200, { results: [] })]);
-        await postTrips({ ...deps(fetchFn), sign: async (body) => `sig-of-${body.length}` }, []);
-        expect(calls[0].headers["X-Device-Signature"]).toMatch(/^sig-of-\d+$/);
+        await postTrips(
+            { ...deps(fetchFn), sign: async () => ({ "X-Device-Signature": "sig" }) },
+            [],
+        );
+        expect(calls[0].headers["X-Device-Signature"]).toBe("sig");
     });
 
     it("maps 401 and 403 to fatal errors with a clear message", async () => {

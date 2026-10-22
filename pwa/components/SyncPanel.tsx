@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
     readAppSettings,
@@ -7,7 +5,8 @@ import {
     writeAppSettings,
     type AppSettings,
 } from "@/lib/app-settings";
-import { ensureDeviceKey, ed25519Supported, loadDeviceKey, signText } from "@/lib/device-key";
+import { ensureDeviceKey, ed25519Supported, loadDeviceKey } from "@/lib/device-key";
+import { makeDeviceSigner } from "@/lib/device-upload";
 import { indexedDbSyncStore, listRefusedTrips, requeueTrip, isPending } from "@/lib/sync-store";
 import {
     backgroundStatusText,
@@ -193,7 +192,13 @@ export function SyncPanel() {
                     fetch: (input, init) => fetch(input, init),
                     sign:
                         key?.privateKey && subtle
-                            ? (body) => signText(subtle, key, body)
+                            ? makeDeviceSigner({
+                                  subtle,
+                                  key,
+                                  baseUrl: current.backendUrl,
+                                  apiKey: current.apiKey,
+                                  fetch: (input, init) => fetch(input, init),
+                              })
                             : undefined,
                     sleep,
                 },
@@ -282,7 +287,7 @@ export function SyncPanel() {
                 <p className="text-sm text-neutral-600">
                     Signing:{" "}
                     {signing === "on"
-                        ? "uploads are signed with this device's key. The backend does not check signatures yet."
+                        ? "uploads are signed with this device's key. A user's login registers the device. The owner key sends unsigned uploads."
                         : signing === "off"
                           ? "a signing key is made when upload is turned on."
                           : signing === "unsupported"

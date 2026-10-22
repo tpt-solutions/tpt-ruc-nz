@@ -50,7 +50,7 @@ function setup(settings: AppSettings, trips: Trip[] = [TRIP], status = 200) {
         readSettings: async () => settings,
         recordAttempt,
         loadKey: async () => undefined,
-        sign: async () => "sig",
+        signer: () => async () => ({ "X-Device-Signature": "sig" }),
         fetch: fetchMock as unknown as typeof fetch,
         sleep: async () => {},
         store,
