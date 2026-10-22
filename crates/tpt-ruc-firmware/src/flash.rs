@@ -161,6 +161,16 @@ impl<S: SectorStorage> SectorLog<S> {
         self.storage
     }
 
+    /// Bytes in each sector.
+    pub fn sector_size(&self) -> usize {
+        self.storage.sector_size()
+    }
+
+    /// Number of sectors in the log, whether or not they hold data.
+    pub fn sector_count(&self) -> usize {
+        self.storage.sector_count()
+    }
+
     /// Number of sectors that hold data.
     pub fn live_sectors(&self) -> usize {
         (0..self.storage.sector_count())

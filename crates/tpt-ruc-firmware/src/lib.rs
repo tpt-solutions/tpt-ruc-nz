@@ -5,8 +5,8 @@
 //!
 //! This crate turns a raw GNSS UART byte stream into [`Fix`] samples for
 //! `tpt-ruc-core`. It has no allocation and builds for the host, so it can be
-//! tested here. The ESP-IDF or esp-hal UART driver, the flash log and the BLE
-//! service are not in this crate yet. They are described in `hardware/README.md`.
+//! tested here. The flash log, the seed and the GATT rules are here, and the chip
+//! drivers (UART, flash, RNG, BLE radio) are in `firmware/esp`, which is built for the device.
 
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
@@ -16,9 +16,11 @@ pub mod flash;
 pub mod gatt;
 pub mod identity;
 pub mod log;
+pub mod nor;
 pub mod payload;
 pub mod queue;
 pub mod recorder;
+pub mod seed;
 pub mod session;
 pub mod transfer;
 pub mod ubx;

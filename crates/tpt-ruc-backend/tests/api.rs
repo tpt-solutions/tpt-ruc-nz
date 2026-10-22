@@ -385,6 +385,13 @@ async fn cors_allows_only_configured_origins() {
         response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
         ORIGIN
     );
+    // Signed uploads from the browser send these headers, so the preflight must allow them.
+    let allowed = response.headers()[header::ACCESS_CONTROL_ALLOW_HEADERS]
+        .to_str()
+        .unwrap();
+    for name in ["x-device-id", "x-device-sequence", "x-device-signature"] {
+        assert!(allowed.contains(name), "preflight does not allow {name}");
+    }
 }
 
 /// Starts the real server on an ephemeral port and returns its address.

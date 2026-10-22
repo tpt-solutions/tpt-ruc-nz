@@ -57,9 +57,9 @@ impl DeviceIdentity {
 /// and stores it. Later calls return the same seed. The seed must never leave
 /// the device, so the trait has no way to read it back out.
 ///
-/// TODO (on-chip, not written): use the esp-hal `Rng` for the seed, and keep it
-/// in flash behind a read-protected or write-once partition. Tracked in
-/// `todo.md`, Phase 3, "Pairing/bonding approach and device identity".
+/// The chip's implementation is [`crate::seed::FlashSeed`], which keeps the seed
+/// in a write-once flash record. The seed is still readable from plain flash. A
+/// read-protected or encrypted partition is still open (`todo.md`, Phase 3).
 pub trait SeedSource {
     /// Why the seed could not be produced, such as a storage or random-source fault.
     type Error;

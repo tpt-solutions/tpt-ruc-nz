@@ -358,7 +358,9 @@ fn preflight() -> Response<Full<Bytes>> {
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("authorization, content-type"),
+        HeaderValue::from_static(
+            "authorization, content-type, x-device-id, x-device-sequence, x-device-signature",
+        ),
     );
     headers.insert(
         header::ACCESS_CONTROL_MAX_AGE,

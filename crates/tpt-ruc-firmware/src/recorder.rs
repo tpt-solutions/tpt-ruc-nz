@@ -7,7 +7,7 @@
 //! trip recorded on the device matches one recorded in the PWA. Finished
 //! segments wait in a [`SegmentQueue`] until they are sent.
 
-use tpt_ruc_core::{Config, Tracker};
+use tpt_ruc_core::{Config, Fix, Tracker};
 
 use crate::queue::SegmentQueue;
 use crate::GnssReader;
@@ -22,6 +22,8 @@ pub struct Recorder<const N: usize> {
     total_base_m: f64,
     queue: SegmentQueue<N>,
     rejected: u32,
+    /// The newest fix the GNSS reader produced, accepted or not. The live view shows it.
+    latest: Option<Fix>,
 }
 
 impl<const N: usize> Recorder<N> {
@@ -33,6 +35,7 @@ impl<const N: usize> Recorder<N> {
             total_base_m: 0.0,
             queue: SegmentQueue::new(),
             rejected: 0,
+            latest: None,
         }
     }
 
@@ -57,6 +60,7 @@ impl<const N: usize> Recorder<N> {
         let Some(fix) = self.reader.push(byte) else {
             return;
         };
+        self.latest = Some(fix);
         match self.tracker.push(fix) {
             Ok(accepted) => {
                 if let Some(closed) = accepted.closed {
@@ -87,6 +91,11 @@ impl<const N: usize> Recorder<N> {
     /// Total distance accepted since the recorder was created, in metres.
     pub fn total_m(&self) -> f64 {
         self.total_base_m + self.tracker.total_m()
+    }
+
+    /// The newest fix read from the receiver, or `None` before the first one.
+    pub fn latest_fix(&self) -> Option<Fix> {
+        self.latest
     }
 
     /// Fixes the filters rejected, since the recorder was created.
@@ -173,6 +182,20 @@ mod tests {
             feed(&mut recorder, &pair(0.0, i, 0.0));
         }
         assert_eq!(recorder.total_m(), 0.0);
+    }
+
+    #[test]
+    fn the_latest_fix_is_kept_even_when_the_filters_reject_it() {
+        let mut recorder: Recorder<8> = Recorder::new();
+        assert_eq!(recorder.latest_fix(), None);
+        feed(&mut recorder, &pair(0.0, 0, 0.0));
+        let first = recorder
+            .latest_fix()
+            .expect("a GGA with an RMC gives a fix");
+        // The same position again is a duplicate, so the tracker rejects it, but the live view still updates.
+        feed(&mut recorder, &pair(0.0, 1, 0.0));
+        let second = recorder.latest_fix().unwrap();
+        assert_ne!(first.time_ms, second.time_ms);
     }
 
     #[test]

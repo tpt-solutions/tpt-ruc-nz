@@ -1,0 +1,10 @@
+# Partition table for the tracker. Flash it with:
+#   espflash flash --partition-table partitions.csv ...
+# The label `tpt-ruc` must match PARTITION in src/device.rs. Its first 4 KiB sector
+# holds the device seed. The rest holds the trip segment log. Its size is a multiple of 4 KiB.
+# Offsets are unverified on hardware until the board is flashed with this table.
+# Name,    Type, SubType, Offset,   Size,     Flags
+nvs,       data, nvs,     0x9000,   0x6000,
+phy_init,  data, phy,     0xf000,   0x1000,
+factory,   app,  factory, 0x10000,  0x200000,
+tpt-ruc,   data, 0x40,    0x210000, 0x40000,

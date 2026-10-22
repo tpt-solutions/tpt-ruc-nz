@@ -12,20 +12,42 @@ publish = false
 [workspace]
 
 [features]
-default = ["esp32c6"]
-esp32s3 = ["esp-hal/esp32s3", "esp-backtrace/esp32s3", "esp-println/esp32s3", "esp-bootloader-esp-idf/esp32s3", "esp-alloc/esp32s3", "tpt-ruc-firmware/esp32s3"]
-esp32c6 = ["esp-hal/esp32c6", "esp-backtrace/esp32c6", "esp-println/esp32c6", "esp-bootloader-esp-idf/esp32c6", "esp-alloc/esp32c6", "tpt-ruc-firmware/esp32c6"]
+default = ["esp32c6", "ble"]
+# The BLE stack needs a radio, so it is off on the ESP32-P4, which has none.
+ble = ["dep:esp-radio", "dep:esp-rtos", "dep:embassy-executor", "dep:embassy-sync", "dep:embassy-time", "dep:embassy-futures", "dep:heapless", "dep:static_cell", "dep:trouble-host", "dep:bt-hci"]
+esp32s3 = ["esp-hal/esp32s3", "esp-backtrace/esp32s3", "esp-println/esp32s3", "esp-bootloader-esp-idf/esp32s3", "esp-alloc/esp32s3", "tpt-ruc-firmware/esp32s3", "esp-radio?/esp32s3", "esp-rtos?/esp32s3"]
+esp32c6 = ["esp-hal/esp32c6", "esp-backtrace/esp32c6", "esp-println/esp32c6", "esp-bootloader-esp-idf/esp32c6", "esp-alloc/esp32c6", "tpt-ruc-firmware/esp32c6", "esp-radio?/esp32c6", "esp-rtos?/esp32c6"]
 esp32p4 = ["esp-hal/esp32p4", "esp-backtrace/esp32p4", "esp-println/esp32p4", "esp-bootloader-esp-idf/esp32p4", "esp-alloc/esp32p4", "tpt-ruc-firmware/esp32p4"]
 
 [dependencies]
 tpt-ruc-firmware = { path = "../../crates/tpt-ruc-firmware", version = "0.1.0" }
-esp-hal = { version = "=1.2.2" }
+tpt-ruc-core = { path = "../../crates/tpt-ruc-core", version = "0.1.0", default-features = false }
+esp-hal = { version = "=1.2.2", features = ["unstable"] }
 esp-backtrace = { version = "=0.20.0", features = ["panic-handler", "println"] }
 esp-println = { version = "=0.18.0", default-features = false, features = ["jtag-serial"] }
 esp-bootloader-esp-idf = { version = "=0.6.0", default-features = false }
-# The device code does not allocate. A heap is declared only because a dependency
-# links the allocator symbols.
+# The heap is used by the BLE stack. Without BLE nothing allocates, but the
+# allocator symbols are still linked.
 esp-alloc = "=0.11.0"
+# Flash and the seed's random source go through the traits the firmware crate defines.
+# esp-storage is the chip flash driver. It is the version esp-hal and the bootloader use.
+embedded-storage = "0.3.2"
+esp-storage = { version = "=0.10.0", features = ["embedded-storage"] }
+
+# BLE stack. esp-radio is a beta, so every version is pinned. esp-rtos runs the
+# scheduler that esp-radio needs, embassy runs the BLE tasks, and trouble-host is the
+# GATT server. bt-hci connects the controller to the host.
+esp-radio = { version = "=1.0.0-beta.1", optional = true, default-features = false, features = ["ble", "esp-alloc", "unstable"] }
+esp-rtos = { version = "=0.4.0", optional = true, features = ["embassy", "esp-alloc", "esp-radio"] }
+embassy-executor = { version = "=0.10.0", optional = true }
+embassy-sync = { version = "=0.8.0", optional = true }
+embassy-time = { version = "=0.5.1", optional = true }
+embassy-futures = { version = "=0.1.2", optional = true }
+heapless = { version = "=0.9.3", optional = true }
+static_cell = { version = "=2.1.1", optional = true }
+# trouble-host 0.8 needs bt-hci 0.10, which esp-radio 1.0.0-beta.1 (bt-hci 0.9) cannot use. So 0.7.0 is pinned.
+trouble-host = { version = "=0.7.0", optional = true, default-features = false, features = ["peripheral", "gatt", "derive", "default-packet-pool"] }
+bt-hci = { version = "=0.9.0", optional = true }
 
 [profile.release]
 opt-level = "s"

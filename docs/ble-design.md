@@ -2,18 +2,20 @@
 
 Written for: the firmware team and the PWA team.
 
-Status: **design, not yet implemented.** These are recommendations. The GATT layout below is the contract the PWA will code against, so change it only with a version bump.
+Status: **implemented in `firmware/esp`, not yet run on a board.** The GATT layout below is the contract the PWA codes against, so change it only with a version bump.
 
 ## Stack
 
-Decided (following the recommendation): `trouble-host` 0.8.0 (Apache-2.0 OR MIT) on `esp-radio` 1.0.0-beta.1 (MIT OR Apache-2.0), with `embassy-executor` 0.10.0 (MIT OR Apache-2.0) to run the tasks..
+Decided: `trouble-host` **0.7.0** (Apache-2.0 OR MIT) on `esp-radio` 1.0.0-beta.1 (MIT OR Apache-2.0), with `embassy-executor` 0.10.0 (MIT OR Apache-2.0) to run the tasks, and `esp-rtos` 0.4.0 for the scheduler.
+
+This corrects the earlier pin of trouble-host 0.8.0. trouble-host 0.8.0 depends on bt-hci 0.10. esp-radio 1.0.0-beta.1 implements the bt-hci 0.9 transport, so 0.8.0 cannot use its controller. trouble-host 0.7.0 depends on bt-hci 0.9, and the device crate resolves to a single bt-hci. Re-check this pin when esp-radio moves to bt-hci 0.10.
 
 Why:
-- Every crate is dual MIT or Apache-2.0, so it passes the device licence policy with the MIT option.
+- Every crate is dual MIT or Apache-2.0. `cargo deny` passes for `firmware/esp` with the MIT option.
 - It is an async, no_std host stack that runs on the same esp-hal used for the GNSS reader.
 - The alternative, `bleps`, is smaller but less actively maintained. Check that before choosing it.
 
-Open: `esp-radio` is a beta, so pin an exact version. Expect API changes before the stack is stable.
+Open: `esp-radio` is a beta, so the versions are pinned exactly. Expect API changes before the stack is stable.
 
 ## Roles
 
@@ -66,7 +68,7 @@ Every write to the control characteristic goes through `gatt::handle_write`. It 
 
 A refused write changes nothing. Its status is `0x8F`. An acknowledgement larger than the number of segments sent is refused by the session, not by the write itself, because the write cannot know how many were sent. The firmware reports that refusal with a `0x8F` notification after the `0x80` for the write.
 
-The BLE stack, the UART setting for the receiver's output rate, and the notifications themselves are not written yet. They need a board.
+The firmware implements this layout in `firmware/esp/src/ble.rs`. It writes an accepted rate change to the receiver as a UBX frame, and a refused write rolls the setting back (`gatt::apply_control_write`). It compiles for the ESP32-C6 and links as a release binary. **It has not run on a board**, so the radio behaviour, the MTU, and the transfer timing are unverified.
 
 Responses are `0x80` for success and `0x8F` for an unknown or invalid command.
 
@@ -81,7 +83,7 @@ The payload version (currently 1) and this GATT layout are versioned separately.
 
 ## Open items
 
-- [x] Choose the MTU negotiation target. Decided: request 247 after connection, and use the default of 23 until that succeeds. Measurement on a board is still open.
+- [x] Choose the MTU negotiation target. Decided: ask for 247 after connection, and use 23 until that succeeds. **Revised:** trouble-host 0.7 has no API for the peripheral to start an MTU exchange. It answers the phone's request only. So the device cannot ask for 247 itself. The transfer uses whatever MTU the phone negotiates, and the chunk size follows it. Whether the phone asks for 247 is not verified. Measurement on a board is still open.
 - [x] Decide the pairing approach. Decided: the two-layer approach in `docs/pairing.md`. It is not built yet.
 - [ ] Measure the transfer rate on the C6 and S3 once the stack runs.
 - [ ] Write the PWA client against the characteristic table above.

@@ -14,6 +14,8 @@
 //! reported by a later `0x8F` notification (see `docs/ble-design.md`).
 
 use crate::control::{self, Command, Settings, RESP_OK};
+use crate::recorder::Recorder;
+use crate::ubx;
 
 /// What the firmware must do after an accepted write.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +64,44 @@ pub fn handle_write(settings: &mut Settings, bytes: &[u8]) -> Reply {
         status: RESP_OK,
         action,
     }
+}
+
+/// Where the firmware writes bytes for the GNSS receiver. The UART driver implements this.
+pub trait GnssSink {
+    /// Writes all of `bytes`. Returns `false` if the UART refused them.
+    fn write_all(&mut self, bytes: &[u8]) -> bool;
+}
+
+/// Handles one control write and applies its effects to the receiver and the recorder.
+///
+/// An accepted rate change is written to the receiver as a UBX frame. The
+/// recorder takes the new filter thresholds. If the receiver does not take the
+/// frame, the settings go back to what they were, and the reply is refused. So
+/// the phone never sees a rate the receiver is not running.
+pub fn apply_control_write<const N: usize, G: GnssSink>(
+    settings: &mut Settings,
+    recorder: &mut Recorder<N>,
+    gnss: &mut G,
+    bytes: &[u8],
+) -> Reply {
+    let previous = *settings;
+    let reply = handle_write(settings, bytes);
+    let Action::SettingsChanged(_) = reply.action else {
+        return reply;
+    };
+    if let Ok(command) = control::parse(bytes) {
+        if let Some(frame) = ubx::frame_for_command(command) {
+            if !gnss.write_all(&frame) {
+                *settings = previous;
+                return Reply {
+                    status: control::RESP_INVALID,
+                    action: Action::None,
+                };
+            }
+        }
+    }
+    recorder.apply_config(settings.tracker_config());
+    reply
 }
 
 #[cfg(test)]
@@ -130,5 +170,103 @@ mod tests {
             assert_eq!(reply.action, Action::None, "{bytes:?}");
         }
         assert_eq!(settings, before);
+    }
+
+    /// Records the bytes the receiver would be sent, and refuses them when `accept` is false.
+    struct FakeGnss {
+        written: std::vec::Vec<std::vec::Vec<u8>>,
+        accept: bool,
+    }
+
+    impl GnssSink for FakeGnss {
+        fn write_all(&mut self, bytes: &[u8]) -> bool {
+            self.written.push(bytes.to_vec());
+            self.accept
+        }
+    }
+
+    fn gnss(accept: bool) -> FakeGnss {
+        FakeGnss {
+            written: std::vec::Vec::new(),
+            accept,
+        }
+    }
+
+    #[test]
+    fn an_accepted_rate_is_written_to_the_receiver() {
+        let mut settings = Settings::default();
+        let mut recorder: Recorder<4> = Recorder::new();
+        let mut receiver = gnss(true);
+        let reply = apply_control_write(
+            &mut settings,
+            &mut recorder,
+            &mut receiver,
+            &[CMD_SET_GNSS_RATE, 5],
+        );
+        assert_eq!(
+            reply,
+            Reply {
+                status: RESP_OK,
+                action: Action::SettingsChanged(settings)
+            }
+        );
+        assert_eq!(settings.gnss_hz, 5);
+        assert_eq!(
+            receiver.written,
+            std::vec![ubx::cfg_rate_frame(5).unwrap().to_vec()]
+        );
+    }
+
+    #[test]
+    fn a_filter_change_is_not_sent_to_the_receiver() {
+        let mut settings = Settings::default();
+        let mut recorder: Recorder<4> = Recorder::new();
+        let mut receiver = gnss(true);
+        let reply = apply_control_write(
+            &mut settings,
+            &mut recorder,
+            &mut receiver,
+            &[CMD_SET_MAX_HDOP, 25],
+        );
+        assert_eq!(reply.status, RESP_OK);
+        assert_eq!(settings.max_hdop_tenths, 25);
+        assert!(receiver.written.is_empty());
+    }
+
+    #[test]
+    fn a_rate_the_receiver_refuses_is_rolled_back() {
+        let mut settings = Settings::default();
+        let mut recorder: Recorder<4> = Recorder::new();
+        let mut receiver = gnss(false);
+        let reply = apply_control_write(
+            &mut settings,
+            &mut recorder,
+            &mut receiver,
+            &[CMD_SET_GNSS_RATE, 5],
+        );
+        assert_eq!(
+            reply,
+            Reply {
+                status: RESP_INVALID,
+                action: Action::None
+            }
+        );
+        assert_eq!(settings, Settings::default());
+    }
+
+    #[test]
+    fn an_out_of_range_rate_never_reaches_the_receiver() {
+        let mut settings = Settings::default();
+        let mut recorder: Recorder<4> = Recorder::new();
+        let mut receiver = gnss(true);
+        let reply = apply_control_write(
+            &mut settings,
+            &mut recorder,
+            &mut receiver,
+            &[CMD_SET_GNSS_RATE, 10],
+        );
+        assert_eq!(reply.status, RESP_INVALID);
+        assert!(receiver.written.is_empty());
+        assert_eq!(settings, Settings::default());
     }
 }
