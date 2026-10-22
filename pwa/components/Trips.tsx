@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState, type FormEvent } from "react";
 import { listVehicles, newId, type Vehicle } from "@/lib/db";
 import { listTrips, deleteTrip, putTrip } from "@/lib/trips";

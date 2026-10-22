@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { estimateTrip, type TripEstimate } from "@/lib/ruc";
 import { formatMicros } from "@/lib/money";

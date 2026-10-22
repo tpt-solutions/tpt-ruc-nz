@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import init, { liability } from "tpt-ruc-wasm";
 import { formatMicros } from "@/lib/money";

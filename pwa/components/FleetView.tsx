@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState, type FormEvent } from "react";
 import { readAppSettings } from "@/lib/app-settings";
 import { fetchFleetSummary, type FleetRow } from "@/lib/fleet";

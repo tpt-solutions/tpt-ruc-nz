@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState, type ReactNode } from "react";
 import { getSetting, setSetting, SECTION_43_ACK } from "@/lib/db";
 

@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { setSetting, SECTION_43_ACK } from "@/lib/db";
 import { rateTableVersion } from "@/lib/ruc";

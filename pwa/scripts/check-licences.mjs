@@ -6,6 +6,8 @@
 // named exception with a recorded reason. Exceptions are printed on each run
 // so they stay visible.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import checker from "license-checker";
 
 const ALLOWED = new Set([
@@ -20,39 +22,11 @@ const ALLOWED = new Set([
     "Python-2.0",
 ]);
 
-/** Exceptions to the allow list. Each one needs a reason and a review. */
-const EXCEPTIONS = [
-    {
-        match: (name) => name === "sharp" || name.startsWith("@img/sharp"),
-        licences: ["Apache-2.0", "Apache-2.0 AND LGPL-3.0-or-later"],
-        reason: "Optional image optimiser of Next.js. Unused, because the PWA is a static export with unoptimised images, so it is not in out/. Needs removing from the install tree.",
-    },
-    {
-        match: (name) => name === "@swc/helpers",
-        licences: ["Apache-2.0"],
-        reason: "Runtime helper that Next.js uses in its output. Needs confirming against the policy.",
-    },
-    {
-        match: (name) => name === "detect-libc",
-        licences: ["Apache-2.0"],
-        reason: "Platform detection used by the sharp install.",
-    },
-    {
-        match: (name) => name.startsWith("@playwright/") || name.startsWith("playwright"),
-        licences: ["Apache-2.0"],
-        reason: "End-to-end test tooling. Not shipped.",
-    },
-    {
-        match: (name) => name === "baseline-browser-mapping",
-        licences: ["Apache-2.0"],
-        reason: "Build-time browser data used by Next.js. Not shipped.",
-    },
-    {
-        match: (name) => name === "caniuse-lite",
-        licences: ["CC-BY-4.0"],
-        reason: "Build-time browser support data. Not shipped.",
-    },
-];
+/**
+ * Exceptions to the allow list. Each one needs a reason and a review.
+ * None are accepted: Apache-2.0-only, LGPL and CC-BY packages break the MIT chain.
+ */
+const EXCEPTIONS = [];
 
 function isAllowed(licence) {
     if (ALLOWED.has(licence)) return true;
@@ -61,7 +35,40 @@ function isAllowed(licence) {
     return parts.some((p) => ALLOWED.has(p));
 }
 
-checker.init({ start: process.cwd(), production: true }, (error, packages) => {
+/**
+ * Names of the packages that run in production: the root's `dependencies`, and
+ * everything they pull in through `dependencies` and `optionalDependencies`.
+ * Peer dependencies are not followed, so test tooling that a package lists as an
+ * optional peer, such as Playwright under some frameworks, is not counted. Packages are read from the top of
+ * node_modules by name, which is enough here because a nested copy has the same
+ * name as the top-level one.
+ */
+function productionNames() {
+    const root = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
+    const names = new Set();
+    const queue = Object.keys(root.dependencies ?? {});
+    while (queue.length > 0) {
+        const name = queue.shift();
+        if (names.has(name)) continue;
+        names.add(name);
+        let manifest;
+        try {
+            manifest = JSON.parse(
+                readFileSync(join(process.cwd(), "node_modules", name, "package.json"), "utf8"),
+            );
+        } catch {
+            // Not installed for this platform, such as an optional native binary.
+            continue;
+        }
+        queue.push(...Object.keys(manifest.dependencies ?? {}));
+        queue.push(...Object.keys(manifest.optionalDependencies ?? {}));
+    }
+    return names;
+}
+
+const production = productionNames();
+
+checker.init({ start: process.cwd(), production: true }, (error, allPackages) => {
     if (error) {
         console.error(error);
         process.exit(1);
@@ -69,6 +76,11 @@ checker.init({ start: process.cwd(), production: true }, (error, packages) => {
 
     const failures = [];
     const used = new Map();
+    const packages = Object.fromEntries(
+        Object.entries(allPackages).filter(([key]) =>
+            production.has(key.slice(0, key.lastIndexOf("@"))),
+        ),
+    );
 
     for (const [key, info] of Object.entries(packages)) {
         if (info.private) continue;

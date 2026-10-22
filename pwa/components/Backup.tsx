@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { exportBackup, getDb, parseBackup, restoreBackup } from "@/lib/db";
 import { notifyVehiclesChanged } from "@/lib/events";

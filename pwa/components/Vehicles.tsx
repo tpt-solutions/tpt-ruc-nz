@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState, type FormEvent } from "react";
 import { deleteVehicle, listVehicles, newId, putVehicle, type Vehicle } from "@/lib/db";
 import { notifyVehiclesChanged } from "@/lib/events";

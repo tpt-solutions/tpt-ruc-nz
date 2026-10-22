@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { listVehicles, type Vehicle, type DeviceSegment } from "@/lib/db";
 import {

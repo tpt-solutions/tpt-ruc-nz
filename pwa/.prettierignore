@@ -1,8 +1,6 @@
 node_modules
 out
-.next
 wasm-pkg
-next-env.d.ts
 test-results
 playwright-report
 sync-worker.js

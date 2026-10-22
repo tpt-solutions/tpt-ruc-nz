@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { requestPersistentStorage } from "@/lib/db";
 import { formatBytes, isNearQuota } from "@/lib/storage";
