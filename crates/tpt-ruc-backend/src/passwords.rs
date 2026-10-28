@@ -8,7 +8,8 @@
 //! they carry 256 random bits and are stored as a plain SHA-256 hash (see
 //! [`crate::auth`]).
 
-use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::password_hash::phc::PasswordHash;
+use argon2::password_hash::{PasswordHasher, PasswordVerifier};
 use argon2::Argon2;
 
 use crate::error::ApiError;
@@ -17,9 +18,6 @@ use crate::error::ApiError;
 pub const MIN_PASSWORD_LEN: usize = 12;
 /// Longest password accepted, in bytes. Argon2 cost grows with length, so this caps the work per request.
 pub const MAX_PASSWORD_LEN: usize = 256;
-
-/// Salt length in bytes. Argon2 recommends at least 16.
-const SALT_LEN: usize = 16;
 
 /// Checks a password against the length rules. Returns a message for the caller when it is refused.
 pub fn check_policy(password: &str) -> Result<(), ApiError> {
@@ -33,17 +31,8 @@ pub fn check_policy(password: &str) -> Result<(), ApiError> {
 
 /// Hashes a password for storage. The result holds the algorithm, parameters and salt.
 pub fn hash(password: &str) -> Result<String, ApiError> {
-    let mut salt_bytes = [0u8; SALT_LEN];
-    getrandom::fill(&mut salt_bytes).map_err(|error| {
-        tracing::error!(%error, "the operating system random source failed");
-        ApiError::Internal
-    })?;
-    let salt = SaltString::encode_b64(&salt_bytes).map_err(|error| {
-        tracing::error!(%error, "could not encode a password salt");
-        ApiError::Internal
-    })?;
     Argon2::default()
-        .hash_password(password.as_bytes(), salt.as_salt())
+        .hash_password(password.as_bytes())
         .map(|hash| hash.to_string())
         .map_err(|error| {
             tracing::error!(%error, "could not hash a password");
