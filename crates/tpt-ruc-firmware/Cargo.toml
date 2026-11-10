@@ -21,7 +21,7 @@ esp32p4 = []
 rmp = { version = "0.8.15", default-features = false }
 tpt-ruc-core = { path = "../tpt-ruc-core", version = "0.1.0", default-features = false }
 libm.workspace = true
-ed25519-dalek = { version = "2", default-features = false }
+ed25519-dalek = { version = "3", default-features = false }
 # Flash driver traits. The chip driver implements them, and the sector log runs over them.
 embedded-storage = { version = "0.3.2", default-features = false }
 
