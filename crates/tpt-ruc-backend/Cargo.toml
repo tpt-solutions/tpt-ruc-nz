@@ -11,7 +11,7 @@ authors.workspace = true
 publish = false
 
 [dependencies]
-lopdf = { version = "0.46", default-features = false }
+lopdf = { version = "0.47", default-features = false }
 tpt-ruc-core = { version = "0.1.0", path = "../tpt-ruc-core" }
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
